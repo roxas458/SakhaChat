@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SakhaChat</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Auth screen -->
+  <div id="auth-screen" class="screen">
+    <div class="auth-box">
+      <h1>🪶 SakhaChat</h1>
+      <p class="tagline">Кэпсэтиэх, доҕоттор!</p>
+      <div id="login-form">
+        <h2>Вход</h2>
+        <input type="text" id="login-username" placeholder="Логин">
+        <input type="password" id="login-password" placeholder="Пароль">
+        <button onclick="login()">Войти</button>
+        <p class="switch">Нет аккаунта? <a onclick="showRegister()">Регистрация</a></p>
+        <p class="error" id="login-error"></p>
+      </div>
+      <div id="register-form" style="display:none">
+        <h2>Регистрация</h2>
+        <input type="text" id="reg-username" placeholder="Логин">
+        <input type="text" id="reg-display" placeholder="Отображаемое имя">
+        <input type="password" id="reg-password" placeholder="Пароль">
+        <button onclick="register()">Создать</button>
+        <p class="switch">Есть аккаунт? <a onclick="showLogin()">Вход</a></p>
+        <p class="error" id="reg-error"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat screen -->
+  <div id="chat-screen" class="screen" style="display:none">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="me">
+          <div class="avatar" id="me-avatar">?</div>
+          <div>
+            <div class="name" id="me-name"></div>
+            <div class="username" id="me-username"></div>
+          </div>
+        </div>
+        <button class="logout" onclick="logout()" title="Выйти">⎋</button>
+      </div>
+      <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)">
+      <div class="user-list" id="user-list"></div>
+    </aside>
+    <main class="chat-area">
+      <div class="empty-chat" id="empty-chat">
+        <div>🪶</div>
+        <p>Выберите собеседника</p>
+      </div>
+      <div class="chat" id="chat" style="display:none">
+        <div class="chat-header">
+          <div class="avatar" id="chat-avatar"></div>
+          <div>
+            <div class="name" id="chat-name"></div>
+            <div class="status" id="chat-status"></div>
+          </div>
+        </div>
+        <div class="messages" id="messages"></div>
+        <div class="composer">
+          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()">
+          <button onclick="sendMessage()">➤</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -46,7 +46,10 @@
             <div class="username" id="me-username"></div>
           </div>
         </div>
-        <button class="logout" onclick="logout()" title="Выйти">⎋</button>
+        <div class="header-buttons">
+          <button class="settings-btn" onclick="openSettings()" title="Настройки">⚙️</button>
+          <button class="logout" onclick="logout()" title="Выйти">⎋</button>
+        </div>
       </div>
       <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)">
       <div class="user-list" id="user-list"></div>
@@ -73,6 +76,50 @@
       </div>
     </main>
   </div>
+
+  <!-- Модалка настроек профиля -->
+  <div id="settings-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Настройки профиля</h2>
+        <button class="modal-close" onclick="closeSettings()" title="Закрыть">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Профиль -->
+        <div class="profile-section">
+          <div class="avatar avatar-large" id="settings-avatar">?</div>
+          <div class="profile-info">
+            <div class="name" id="settings-username-display"></div>
+            <div class="username" id="settings-username"></div>
+            <div class="member-since" id="settings-created"></div>
+          </div>
+        </div>
+
+        <!-- Смена имени -->
+        <label class="field-label">Отображаемое имя</label>
+        <input type="text" id="settings-displayName" class="modal-input" placeholder="Ваше имя" maxlength="40">
+        <p class="field-hint">Как вас будут видеть другие</p>
+
+        <hr class="modal-divider">
+
+        <!-- Смена пароля -->
+        <label class="field-label">Смена пароля</label>
+        <input type="password" id="settings-currentPassword" class="modal-input" placeholder="Текущий пароль" autocomplete="current-password">
+        <input type="password" id="settings-newPassword" class="modal-input" placeholder="Новый пароль (от 4 символов)" autocomplete="new-password">
+        <p class="field-hint">Оставьте пустым, если не хотите менять</p>
+
+        <p class="error" id="settings-error"></p>
+        <p class="success" id="settings-success"></p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeSettings()">Отмена</button>
+        <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script src="app.js"></script>
 </body>

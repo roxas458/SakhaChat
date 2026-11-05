@@ -231,6 +231,140 @@ function sendMessage() {
   if (!isMobile()) input.focus();
 }
 
+// ==================== НАСТРОЙКИ ПРОФИЛЯ ====================
+async function openSettings() {
+  const modal = document.getElementById('settings-modal');
+  modal.style.display = 'flex';
+
+  // Очищаем поля от прошлых значений
+  document.getElementById('settings-error').textContent = '';
+  document.getElementById('settings-success').textContent = '';
+  document.getElementById('settings-currentPassword').value = '';
+  document.getElementById('settings-newPassword').value = '';
+
+  try {
+    const r = await fetch('/api/me', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      document.getElementById('settings-error').textContent = data.error || 'Ошибка загрузки';
+      return;
+    }
+
+    // Аватар и данные
+    document.getElementById('settings-avatar').textContent = data.displayName[0].toUpperCase();
+    document.getElementById('settings-username-display').textContent = data.displayName;
+    document.getElementById('settings-username').textContent = '@' + data.username;
+    document.getElementById('settings-displayName').value = data.displayName;
+
+    // Дата регистрации
+    if (data.createdAt) {
+      const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
+      const formatted = d.toLocaleDateString('ru-RU', {
+        day: 'numeric', month: 'long', year: 'numeric'
+      });
+      document.getElementById('settings-created').textContent = 'В SakhaChat с ' + formatted;
+    }
+  } catch (e) {
+    document.getElementById('settings-error').textContent = 'Ошибка сети';
+  }
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').style.display = 'none';
+}
+
+async function saveProfile() {
+  const err = document.getElementById('settings-error');
+  const ok = document.getElementById('settings-success');
+  err.textContent = '';
+  ok.textContent = '';
+
+  const displayName = document.getElementById('settings-displayName').value.trim();
+  const currentPassword = document.getElementById('settings-currentPassword').value;
+  const newPassword = document.getElementById('settings-newPassword').value;
+
+  if (!displayName) {
+    err.textContent = 'Имя не может быть пустым';
+    return;
+  }
+
+  const saveBtn = document.querySelector('#settings-modal .btn-primary');
+  const originalText = saveBtn.textContent;
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Сохранение...';
+
+  try {
+    const body = { displayName };
+    if (newPassword) {
+      body.currentPassword = currentPassword;
+      body.newPassword = newPassword;
+    }
+
+    const r = await fetch('/api/profile', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + token
+      },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      err.textContent = data.error || 'Ошибка';
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalText;
+      return;
+    }
+
+    // Обновляем локального пользователя
+    me.displayName = data.displayName;
+    localStorage.setItem('sakhachat_user', JSON.stringify(me));
+
+    // Обновляем интерфейс
+    document.getElementById('me-name').textContent = me.displayName;
+    document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
+    document.getElementById('settings-avatar').textContent = me.displayName[0].toUpperCase();
+    document.getElementById('settings-username-display').textContent = me.displayName;
+
+    // Очищаем поля пароля
+    document.getElementById('settings-currentPassword').value = '';
+    document.getElementById('settings-newPassword').value = '';
+
+    ok.textContent = newPassword ? 'Профиль и пароль обновлены!' : 'Имя обновлено!';
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalText;
+
+    // Перезапрашиваем список пользователей, чтобы обновить имя у собеседников
+    searchUsers(document.getElementById('search').value);
+
+    // Закрываем через 1.5 сек
+    setTimeout(() => {
+      const modal = document.getElementById('settings-modal');
+      if (modal.style.display !== 'none') closeSettings();
+    }, 1500);
+  } catch (e) {
+    err.textContent = 'Ошибка сети';
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalText;
+  }
+}
+
+// Закрытие модалки по клику на фон и Escape
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('settings-modal');
+  if (!modal || modal.style.display === 'none') return;
+  if (e.target === modal) closeSettings();
+});
+document.addEventListener('keydown', (e) => {
+  const modal = document.getElementById('settings-modal');
+  if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
+    closeSettings();
+  }
+});
+
 // --- Boot ---
 if (token && me) {
   initApp();

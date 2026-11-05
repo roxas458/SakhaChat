@@ -3,18 +3,20 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: #f0f2f5;
   height: 100vh;
+  height: 100dvh; /* правильная высота на iPhone (с учётом адресной строки) */
   overflow: hidden;
   color: #1a1a1a;
 }
 
-.screen { height: 100vh; }
+.screen { height: 100vh; height: 100dvh; }
 
-/* Auth */
+/* ==================== AUTH ==================== */
 #auth-screen {
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
 }
 .auth-box {
   background: white;
@@ -22,6 +24,7 @@ body {
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   width: 360px;
+  max-width: 100%;
 }
 .auth-box h1 { text-align: center; font-size: 32px; margin-bottom: 8px; }
 .tagline { text-align: center; color: #888; margin-bottom: 30px; font-size: 14px; }
@@ -33,6 +36,7 @@ body {
   border: 1px solid #ddd;
   border-radius: 10px;
   font-size: 14px;
+  font-family: inherit;
 }
 .auth-box input:focus { outline: none; border-color: #667eea; }
 .auth-box button {
@@ -46,20 +50,23 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
+  font-family: inherit;
 }
 .auth-box button:hover { background: #5568d3; }
 .switch { text-align: center; margin-top: 16px; font-size: 14px; color: #666; }
 .switch a { color: #667eea; cursor: pointer; font-weight: 600; }
 .error { color: #e53935; text-align: center; margin-top: 12px; font-size: 13px; min-height: 18px; }
 
-/* Chat layout */
-#chat-screen { display: flex; }
+/* ==================== CHAT LAYOUT ==================== */
+#chat-screen { display: flex; height: 100vh; height: 100dvh; }
+
 .sidebar {
   width: 320px;
   background: white;
   border-right: 1px solid #e4e6eb;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 .sidebar-header {
   padding: 16px;
@@ -67,8 +74,15 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #e4e6eb;
+  flex-shrink: 0;
 }
-.me { display: flex; align-items: center; gap: 10px; }
+.me { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.me > div:last-child { min-width: 0; }
+.me .name, .me .username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .avatar {
   width: 40px;
   height: 40px;
@@ -91,6 +105,7 @@ body {
   color: #888;
   padding: 4px 8px;
   border-radius: 6px;
+  flex-shrink: 0;
 }
 .logout:hover { background: #f0f2f5; }
 .search {
@@ -100,9 +115,11 @@ body {
   border-radius: 20px;
   font-size: 14px;
   background: #f0f2f5;
+  font-family: inherit;
+  flex-shrink: 0;
 }
 .search:focus { outline: none; background: white; border-color: #667eea; }
-.user-list { flex: 1; overflow-y: auto; }
+.user-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .user-item {
   padding: 12px 16px;
   display: flex;
@@ -115,6 +132,12 @@ body {
 .user-item:hover { background: #f0f2f5; }
 .user-item.active { background: #e7ebff; }
 .user-item .avatar { position: relative; }
+.user-item > div:last-child { min-width: 0; }
+.user-item .name, .user-item .username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .online-dot {
   position: absolute;
   bottom: 0;
@@ -126,8 +149,8 @@ body {
   border: 2px solid white;
 }
 
-/* Chat area */
-.chat-area { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; }
+/* ==================== CHAT AREA ==================== */
+.chat-area { flex: 1; display: flex; flex-direction: column; background: #f0f2f5; min-width: 0; }
 .empty-chat {
   flex: 1;
   display: flex;
@@ -138,7 +161,7 @@ body {
   font-size: 60px;
 }
 .empty-chat p { font-size: 16px; margin-top: 10px; }
-.chat { display: flex; flex-direction: column; height: 100%; }
+.chat { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .chat-header {
   padding: 16px 24px;
   background: white;
@@ -146,16 +169,25 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+.chat-header > div:last-child { min-width: 0; }
+.chat-header .name, .chat-header .status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .status { font-size: 12px; color: #4caf50; }
 .status.offline { color: #999; }
 .messages {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
 }
 .message {
   max-width: 60%;
@@ -164,6 +196,7 @@ body {
   font-size: 14px;
   line-height: 1.4;
   word-wrap: break-word;
+  overflow-wrap: break-word;
   animation: fadeIn 0.2s;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -191,6 +224,7 @@ body {
   border-top: 1px solid #e4e6eb;
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 .composer input {
   flex: 1;
@@ -198,6 +232,8 @@ body {
   border: 1px solid #e4e6eb;
   border-radius: 24px;
   font-size: 14px;
+  font-family: inherit;
+  min-width: 0;
 }
 .composer input:focus { outline: none; border-color: #667eea; }
 .composer button {
@@ -209,16 +245,122 @@ body {
   color: white;
   font-size: 18px;
   cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
 }
 .composer button:hover { background: #5568d3; }
 
-/* Scrollbar */
+/* ==================== BACK BUTTON (по умолчанию скрыта) ==================== */
+.back-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: #667eea;
+  cursor: pointer;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-family: inherit;
+}
+.back-btn:hover { background: #f0f2f5; }
+.back-btn:active { background: #e4e6eb; }
+
+/* ==================== SCROLLBAR ==================== */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #aaa; }
 
-/* Mobile */
-@media (max-width: 600px) {
-  .sidebar { width: 100%; position: absolute; z-index: 10; height: 100%; }
-  .sidebar.hidden { display: none; }
+/* ==================== МОБИЛЬНАЯ АДАПТАЦИЯ ==================== */
+@media (max-width: 700px) {
+  /* Сайдбар на весь экран, уезжает влево, когда открыт чат */
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 20;
+    transform: translateX(0);
+    transition: transform 0.25s ease;
+    border-right: none;
+  }
+  .sidebar.hidden {
+    transform: translateX(-100%);
+  }
+
+  /* Чат на весь экран */
+  .chat-area {
+    width: 100%;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Кнопка «назад» — показываем */
+  .back-btn {
+    display: flex;
+  }
+
+  /* Пустой экран на телефоне не нужен (он за списком) */
+  .empty-chat {
+    display: none;
+  }
+
+  /* Сообщения шире */
+  .message {
+    max-width: 82%;
+    font-size: 15px;
+  }
+
+  /* Поля ввода — 16px, чтобы iPhone не зумил при фокусе */
+  .composer input,
+  .search,
+  .auth-box input {
+    font-size: 16px;
+    padding: 14px 16px;
+  }
+
+  /* Кнопка отправки крупнее */
+  .composer button {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  /* Шапка чата компактнее */
+  .chat-header {
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  /* Экран входа не вылезает за край */
+  .auth-box {
+    width: 100%;
+    max-width: 420px;
+    padding: 28px 22px;
+  }
+  .auth-box h1 { font-size: 28px; }
+  .auth-box h2 { font-size: 18px; }
+  .auth-box button { padding: 14px; font-size: 16px; }
+
+  /* Сайдбар-хедер компактнее */
+  .sidebar-header { padding: 12px; }
+
+  /* Кнопка «выйти» крупнее для пальца */
+  .logout { padding: 8px 14px; font-size: 22px; }
+
+  /* User-item крупнее */
+  .user-item { padding: 14px 16px; }
+  .user-item .avatar { width: 44px; height: 44px; }
+  .user-item .name { font-size: 15px; }
+
+  /* Сообщения в чате — отступы поменьше */
+  .messages { padding: 12px; gap: 6px; }
+
+  /* Composer компактнее */
+  .composer { padding: 12px; gap: 8px; }
 }

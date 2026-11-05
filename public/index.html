@@ -2,7 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>SakhaChat</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,17 +17,17 @@
       <p class="tagline">Кэпсэтиэх, доҕоттор!</p>
       <div id="login-form">
         <h2>Вход</h2>
-        <input type="text" id="login-username" placeholder="Логин">
-        <input type="password" id="login-password" placeholder="Пароль">
+        <input type="text" id="login-username" placeholder="Логин" autocomplete="username">
+        <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password">
         <button onclick="login()">Войти</button>
         <p class="switch">Нет аккаунта? <a onclick="showRegister()">Регистрация</a></p>
         <p class="error" id="login-error"></p>
       </div>
       <div id="register-form" style="display:none">
         <h2>Регистрация</h2>
-        <input type="text" id="reg-username" placeholder="Логин">
-        <input type="text" id="reg-display" placeholder="Отображаемое имя">
-        <input type="password" id="reg-password" placeholder="Пароль">
+        <input type="text" id="reg-username" placeholder="Логин" autocomplete="username">
+        <input type="text" id="reg-display" placeholder="Отображаемое имя" autocomplete="name">
+        <input type="password" id="reg-password" placeholder="Пароль" autocomplete="new-password">
         <button onclick="register()">Создать</button>
         <p class="switch">Есть аккаунт? <a onclick="showLogin()">Вход</a></p>
         <p class="error" id="reg-error"></p>
@@ -34,7 +37,7 @@
 
   <!-- Chat screen -->
   <div id="chat-screen" class="screen" style="display:none">
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="me">
           <div class="avatar" id="me-avatar">?</div>
@@ -55,6 +58,7 @@
       </div>
       <div class="chat" id="chat" style="display:none">
         <div class="chat-header">
+          <button class="back-btn" onclick="closeChatOnMobile()" title="Назад">←</button>
           <div class="avatar" id="chat-avatar"></div>
           <div>
             <div class="name" id="chat-name"></div>
@@ -63,7 +67,7 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()">
+          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off">
           <button onclick="sendMessage()">➤</button>
         </div>
       </div>

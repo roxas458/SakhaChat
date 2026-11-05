@@ -5,6 +5,11 @@ let currentChat = null; // {id, displayName, username}
 let onlineUsers = new Set();
 let usersCache = [];
 
+// --- Утилиты ---
+function isMobile() {
+  return window.matchMedia('(max-width: 700px)').matches;
+}
+
 // --- Auth ---
 function showRegister() {
   document.getElementById('login-form').style.display = 'none';
@@ -59,7 +64,12 @@ function onLogin(data) {
 }
 
 async function logout() {
-  await fetch('/api/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+  try {
+    await fetch('/api/logout', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+  } catch (e) { /* сервер недоступен — не страшно */ }
   localStorage.removeItem('sakhachat_token');
   localStorage.removeItem('sakhachat_user');
   if (socket) socket.disconnect();
@@ -73,7 +83,7 @@ function initApp() {
   document.getElementById('me-name').textContent = me.displayName;
   document.getElementById('me-username').textContent = '@' + me.username;
   document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
-  
+
   connectSocket();
   searchUsers('');
 }
@@ -91,7 +101,7 @@ function connectSocket() {
     }
   });
   socket.on('connect_error', () => {
-    // token invalid
+    // токен недействителен
     localStorage.clear();
     location.reload();
   });
@@ -119,7 +129,7 @@ function renderUserList() {
     const div = document.createElement('div');
     div.className = 'user-item' + (currentChat && currentChat.id === u.id ? ' active' : '');
     div.innerHTML = `
-      <div class="avatar">${u.displayName[0].toUpperCase()}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
+      <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
       <div>
         <div class="name">${escapeHtml(u.displayName)}</div>
         <div class="username">@${escapeHtml(u.username)}</div>
@@ -131,11 +141,18 @@ function renderUserList() {
 }
 
 function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 }
 
 // --- Chat ---
 async function openChat(user) {
+  // На телефоне скрываем список, показываем чат
+  if (isMobile()) {
+    document.getElementById('sidebar').classList.add('hidden');
+  }
+
   currentChat = user;
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
@@ -152,7 +169,20 @@ async function openChat(user) {
   container.innerHTML = '';
   for (const m of messages) appendMessage(m, false);
   scrollBottom();
-  document.getElementById('message-input').focus();
+
+  // Фокусим поле только на десктопе (на телефоне это вызывает прыжок клавиатуры)
+  if (!isMobile()) {
+    document.getElementById('message-input').focus();
+  }
+}
+
+// Возврат к списку на телефоне (вызывается кнопкой «←»)
+function closeChatOnMobile() {
+  document.getElementById('sidebar').classList.remove('hidden');
+  currentChat = null;
+  document.getElementById('chat').style.display = 'none';
+  document.getElementById('empty-chat').style.display = 'flex';
+  renderUserList();
 }
 
 function updateStatus() {
@@ -173,7 +203,9 @@ function appendMessage(msg, animate) {
   const div = document.createElement('div');
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   if (!animate) div.style.animation = 'none';
-  const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', {
+    hour: '2-digit', minute: '2-digit'
+  });
   div.innerHTML = escapeHtml(msg.text) + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
@@ -181,7 +213,10 @@ function appendMessage(msg, animate) {
 
 function scrollBottom() {
   const c = document.getElementById('messages');
-  c.scrollTop = c.scrollHeight;
+  // На мобильных лучше срабатывает через requestAnimationFrame
+  requestAnimationFrame(() => {
+    c.scrollTop = c.scrollHeight;
+  });
 }
 
 function sendMessage() {
@@ -192,7 +227,8 @@ function sendMessage() {
     appendMessage(msg, true);
   });
   input.value = '';
-  input.focus();
+  // На телефоне не фокусим (клавиатура прыгает), на десктопе — фокусим
+  if (!isMobile()) input.focus();
 }
 
 // --- Boot ---

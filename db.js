@@ -29,4 +29,19 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_msg_pair ON messages(sender_id, receiver_id);
 `);
 
+// ============ ОБНОВЛЕНИЕ БАЗЫ ============
+// 1. Добавляем bio (описание профиля)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN bio TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+
+// 2. Оставляем колонки для галочек (чтобы старый код не падал)
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0;');
+} catch (e) { /* Колонка уже существует */ }
+
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0;');
+} catch (e) { /* Колонка уже существует */ }
+
 module.exports = db;

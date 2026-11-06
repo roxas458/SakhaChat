@@ -53,7 +53,7 @@ app.post('/api/register', (req, res) => {
     const newId = Number(result.lastInsertRowid);
     const token = crypto.randomBytes(32).toString('hex');
     db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, newId);
-    res.json({ token, user: { id: newId, username, displayName } });
+    res.json({ token, user: { id: newId, username, displayName, bio: '' } });
   } catch (e) {
     res.status(400).json({ error: 'Username taken' });
   }
@@ -71,7 +71,7 @@ app.post('/api/login', (req, res) => {
   db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, userId);
   res.json({
     token,
-    user: { id: userId, username: user.username, displayName: user.display_name }
+    user: { id: userId, username: user.username, displayName: user.display_name, bio: user.bio || '' }
   });
 });
 
@@ -86,20 +86,46 @@ app.post('/api/logout', auth, (req, res) => {
 // Получить свой профиль
 app.get('/api/me', auth, (req, res) => {
   const user = db.prepare(
-    'SELECT id, username, display_name, created_at FROM users WHERE id = ?'
+    'SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?'
   ).get(req.userId);
   if (!user) return res.status(404).json({ error: 'Not found' });
   res.json({
     id: Number(user.id),
     username: user.username,
     displayName: user.display_name,
+    bio: user.bio || '',
     createdAt: user.created_at
   });
 });
 
-// Обновить профиль (имя и/или пароль)
+// Получить профиль другого пользователя
+app.get('/api/user/:id', auth, (req, res) => {
+  const otherId = parseInt(req.params.id, 10);
+  const user = db.prepare(
+    'SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?'
+  ).get(otherId);
+  if (!user) return res.status(404).json({ error: 'Not found' });
+
+  // Ищем дату самого первого сообщения между нами
+  const firstMsg = db.prepare(`
+    SELECT created_at FROM messages 
+    WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+    ORDER BY created_at ASC LIMIT 1
+  `).get(req.userId, otherId, otherId, req.userId);
+
+  res.json({
+    id: Number(user.id),
+    username: user.username,
+    displayName: user.display_name,
+    bio: user.bio || '',
+    createdAt: user.created_at,
+    firstMessageAt: firstMsg ? firstMsg.created_at : null
+  });
+});
+
+// Обновить профиль (имя, био и/или пароль)
 app.post('/api/profile', auth, (req, res) => {
-  const { displayName, currentPassword, newPassword } = req.body || {};
+  const { displayName, bio, currentPassword, newPassword } = req.body || {};
 
   // Смена отображаемого имени
   if (displayName !== undefined) {
@@ -108,6 +134,15 @@ app.post('/api/profile', auth, (req, res) => {
       return res.status(400).json({ error: 'Имя от 1 до 40 символов' });
     }
     db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(name, req.userId);
+  }
+
+  // Смена описания (bio)
+  if (bio !== undefined) {
+    const bioText = String(bio).trim();
+    if (bioText.length > 150) {
+      return res.status(400).json({ error: 'Описание не более 150 символов' });
+    }
+    db.prepare('UPDATE users SET bio = ? WHERE id = ?').run(bioText, req.userId);
   }
 
   // Смена пароля
@@ -128,12 +163,13 @@ app.post('/api/profile', auth, (req, res) => {
 
   // Возвращаем обновлённый профиль
   const updated = db.prepare(
-    'SELECT id, username, display_name, created_at FROM users WHERE id = ?'
+    'SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?'
   ).get(req.userId);
   res.json({
     id: Number(updated.id),
     username: updated.username,
     displayName: updated.display_name,
+    bio: updated.bio || '',
     createdAt: updated.created_at
   });
 });
@@ -144,12 +180,10 @@ app.post('/api/profile', auth, (req, res) => {
 app.get('/api/users', auth, (req, res) => {
   const q = (req.query.q || '').toLowerCase().trim();
   
-  // Если строка пустая или слишком короткая — никого не показываем
   if (!q || q.length < 3) {
     return res.json([]);
   }
 
-  // Ищем строго по совпадению логина (username)
   const users = db.prepare(
     'SELECT id, username, display_name FROM users WHERE LOWER(username) = ? AND id != ? LIMIT 1'
   ).all(q, req.userId);
@@ -163,9 +197,8 @@ app.get('/api/users', auth, (req, res) => {
 
 // ============ МОИ ЧАТЫ ============
 
-// Получить список моих активных чатов (с кем была переписка)
+// Получить список моих активных чатов
 app.get('/api/chats', auth, (req, res) => {
-  // Ищем последнее сообщение с каждым уникальным пользователем
   const chats = db.prepare(`
     SELECT 
       u.id, u.username, u.display_name,
@@ -210,24 +243,51 @@ const onlineUsers = new Map();
 
 io.on('connection', (socket) => {
   onlineUsers.set(socket.userId, socket.id);
-
-  // Broadcast online status
   io.emit('online', Array.from(onlineUsers.keys()));
 
+  // Отправка сообщения
   socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
+
+    const isOnline = onlineUsers.has(to);
+    const delivered = isOnline ? 1 : 0;
+
     const result = db.prepare(
-      'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
-    ).run(socket.userId, to, text.trim());
+      'INSERT INTO messages (sender_id, receiver_id, text, delivered) VALUES (?, ?, ?, ?)'
+    ).run(socket.userId, to, text.trim(), delivered);
+    
     const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
 
-    // Send to receiver
     const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) {
       io.to(receiverSocket).emit('new_message', msg);
+      socket.emit('message_delivered', { id: msg.id });
     }
 
     if (callback) callback(msg);
+  });
+
+  // Отметка о прочтении
+  socket.on('mark_read', ({ withUserId }) => {
+    if (!withUserId) return;
+    
+    const unreadMsgs = db.prepare(`
+      SELECT id FROM messages 
+      WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
+    `).all(withUserId, socket.userId);
+
+    if (unreadMsgs.length > 0) {
+      db.prepare(`
+        UPDATE messages 
+        SET is_read = 1, delivered = 1 
+        WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
+      `).run(withUserId, socket.userId);
+
+      const senderSocket = onlineUsers.get(Number(withUserId));
+      if (senderSocket) {
+        io.to(senderSocket).emit('messages_read', { byUserId: socket.userId });
+      }
+    }
   });
 
   socket.on('disconnect', () => {

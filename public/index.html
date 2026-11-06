@@ -62,7 +62,7 @@
       <div class="chat" id="chat" style="display:none">
         <div class="chat-header">
           <button class="back-btn" onclick="closeChatOnMobile()" title="Назад">←</button>
-          <div class="avatar" id="chat-avatar"></div>
+          <div class="avatar" id="chat-avatar" onclick="openViewProfile()" title="Открыть профиль" style="cursor:pointer"></div>
           <div>
             <div class="name" id="chat-name"></div>
             <div class="status" id="chat-status"></div>
@@ -86,7 +86,6 @@
       </div>
 
       <div class="modal-body">
-        <!-- Профиль -->
         <div class="profile-section">
           <div class="avatar avatar-large" id="settings-avatar">?</div>
           <div class="profile-info">
@@ -96,14 +95,18 @@
           </div>
         </div>
 
-        <!-- Смена имени -->
         <label class="field-label">Отображаемое имя</label>
         <input type="text" id="settings-displayName" class="modal-input" placeholder="Ваше имя" maxlength="40">
         <p class="field-hint">Как вас будут видеть другие</p>
 
         <hr class="modal-divider">
 
-        <!-- Смена пароля -->
+        <label class="field-label">О себе</label>
+        <textarea id="settings-bio" class="modal-input" placeholder="Расскажите о себе..." maxlength="150" rows="3"></textarea>
+        <p class="field-hint">До 150 символов. Видно другим пользователям.</p>
+
+        <hr class="modal-divider">
+
         <label class="field-label">Смена пароля</label>
         <input type="password" id="settings-currentPassword" class="modal-input" placeholder="Текущий пароль" autocomplete="current-password">
         <input type="password" id="settings-newPassword" class="modal-input" placeholder="Новый пароль (от 4 символов)" autocomplete="new-password">
@@ -111,7 +114,6 @@
 
         <hr class="modal-divider">
 
-        <!-- Оформление -->
         <label class="field-label">Оформление</label>
         <div class="theme-switch-row">
           <span>Тёмная тема</span>
@@ -129,6 +131,34 @@
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeSettings()">Отмена</button>
         <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка просмотра чужого профиля -->
+  <div id="view-profile-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Профиль пользователя</h2>
+        <button class="modal-close" onclick="closeViewProfile()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-section">
+          <div class="avatar avatar-large" id="view-profile-avatar">?</div>
+          <div class="profile-info">
+            <div class="name" id="view-profile-name"></div>
+            <div class="username" id="view-profile-username"></div>
+            <div class="member-since" id="view-profile-created"></div>
+          </div>
+        </div>
+        <label class="field-label">О себе</label>
+        <div class="bio-box" id="view-profile-bio">Пользователь ничего не рассказал о себе.</div>
+        
+        <!-- Блок с датой знакомства -->
+        <div id="view-profile-chat-date" style="display:none; margin-top: 12px; font-size: 13px; color: #888; text-align: center;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeViewProfile()">Закрыть</button>
       </div>
     </div>
   </div>

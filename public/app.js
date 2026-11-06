@@ -242,7 +242,7 @@ function updateStatus() {
   }
 }
 
-// ПРОСТАЯ ОТРИСОВКА СООБЩЕНИЙ (БЕЗ ГАЛОЧЕК)
+// Отрисовка сообщений (без галочек)
 function appendMessage(msg, animate) {
   const container = document.getElementById('messages');
   const isMine = msg.sender_id === me.id;
@@ -287,6 +287,7 @@ async function openSettings() {
   document.getElementById('settings-success').textContent = '';
   document.getElementById('settings-currentPassword').value = '';
   document.getElementById('settings-newPassword').value = '';
+  document.getElementById('settings-bio').value = '';
 
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
@@ -307,6 +308,7 @@ async function openSettings() {
     document.getElementById('settings-username-display').textContent = data.displayName;
     document.getElementById('settings-username').textContent = '@' + data.username;
     document.getElementById('settings-displayName').value = data.displayName;
+    document.getElementById('settings-bio').value = data.bio || '';
 
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
@@ -331,6 +333,7 @@ async function saveProfile() {
   ok.textContent = '';
 
   const displayName = document.getElementById('settings-displayName').value.trim();
+  const bio = document.getElementById('settings-bio').value;
   const currentPassword = document.getElementById('settings-currentPassword').value;
   const newPassword = document.getElementById('settings-newPassword').value;
 
@@ -345,7 +348,7 @@ async function saveProfile() {
   saveBtn.textContent = 'Сохранение...';
 
   try {
-    const body = { displayName };
+    const body = { displayName, bio };
     if (newPassword) {
       body.currentPassword = currentPassword;
       body.newPassword = newPassword;
@@ -369,6 +372,7 @@ async function saveProfile() {
     }
 
     me.displayName = data.displayName;
+    me.bio = data.bio;
     localStorage.setItem('sakhachat_user', JSON.stringify(me));
 
     document.getElementById('me-name').textContent = me.displayName;
@@ -379,7 +383,7 @@ async function saveProfile() {
     document.getElementById('settings-currentPassword').value = '';
     document.getElementById('settings-newPassword').value = '';
 
-    ok.textContent = newPassword ? 'Профиль и пароль обновлены!' : 'Имя обновлено!';
+    ok.textContent = newPassword ? 'Профиль и пароль обновлены!' : 'Профиль обновлён!';
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
 
@@ -396,15 +400,73 @@ async function saveProfile() {
   }
 }
 
+// ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
+async function openViewProfile() {
+  if (!currentChat) return;
+  const modal = document.getElementById('view-profile-modal');
+  
+  // Показываем модалку и загружаем данные
+  modal.style.display = 'flex';
+  document.getElementById('view-profile-avatar').textContent = currentChat.displayName[0].toUpperCase();
+  document.getElementById('view-profile-name').textContent = currentChat.displayName;
+  document.getElementById('view-profile-username').textContent = '@' + currentChat.username;
+  document.getElementById('view-profile-bio').textContent = 'Загрузка...';
+  document.getElementById('view-profile-created').textContent = '';
+  
+  // Прячем блок с датой, пока не загрузили
+  const dateEl = document.getElementById('view-profile-chat-date');
+  dateEl.style.display = 'none';
+  dateEl.textContent = '';
+
+  try {
+    const r = await fetch('/api/user/' + currentChat.id, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    const data = await r.json();
+    if (!r.ok) return;
+
+    // Описание профиля
+    document.getElementById('view-profile-bio').textContent = data.bio || 'Пользователь ничего не рассказал о себе.';
+    
+    // Дата регистрации в SakhaChat
+    if (data.createdAt) {
+      const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
+      const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+      document.getElementById('view-profile-created').textContent = 'В SakhaChat с ' + formatted;
+    }
+
+    // Дата первого сообщения (начала общения)
+    if (data.firstMessageAt) {
+      const d = new Date(data.firstMessageAt.replace(' ', 'T') + 'Z');
+      const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+      dateEl.textContent = '💬 Общаетесь с ' + formatted;
+      dateEl.style.display = 'block';
+    } else {
+      dateEl.style.display = 'none';
+    }
+  } catch (e) {
+    document.getElementById('view-profile-bio').textContent = 'Ошибка загрузки';
+  }
+}
+
+function closeViewProfile() {
+  document.getElementById('view-profile-modal').style.display = 'none';
+}
+
+// Обработчики кликов (закрытие модалок)
 document.addEventListener('click', (e) => {
   const modal = document.getElementById('settings-modal');
-  if (!modal || modal.style.display === 'none') return;
-  if (e.target === modal) closeSettings();
+  if (modal && modal.style.display !== 'none' && e.target === modal) closeSettings();
+  
+  const viewModal = document.getElementById('view-profile-modal');
+  if (viewModal && viewModal.style.display !== 'none' && e.target === viewModal) closeViewProfile();
 });
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('settings-modal');
-  if (e.key === 'Escape' && modal && modal.style.display !== 'none') {
-    closeSettings();
+  const viewModal = document.getElementById('view-profile-modal');
+  if (e.key === 'Escape') {
+    if (modal && modal.style.display !== 'none') closeSettings();
+    if (viewModal && viewModal.style.display !== 'none') closeViewProfile();
   }
 });
 

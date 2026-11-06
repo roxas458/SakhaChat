@@ -1,7 +1,7 @@
 let token = localStorage.getItem('sakhachat_token');
 let me = JSON.parse(localStorage.getItem('sakhachat_user') || 'null');
 let socket = null;
-let currentChat = null; // {id, displayName, username, lastSeen}
+let currentChat = null;
 let onlineUsers = new Set();
 let usersCache = [];
 
@@ -93,7 +93,19 @@ function connectSocket() {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
     } else {
+      // Помечаем чат как непрочитанный
+      markAsUnread(msg.sender_id);
+      
+      // Обновляем список чатов — новое сообщение будет выделено
       loadChats();
+      
+      // Показываем уведомление, если вкладка свернута
+      if (document.hidden) {
+        const sender = usersCache.find(u => u.id === msg.sender_id);
+        const senderName = sender ? sender.displayName : 'Новое сообщение';
+        showNotification(senderName, msg.text);
+        playNotificationSound();
+      }
     }
   });
 
@@ -114,7 +126,6 @@ async function loadChats() {
     if (updated) currentChat.lastSeen = updated.lastSeen;
     updateStatus();
   }
-  
   renderUserList();
 }
 
@@ -127,13 +138,27 @@ async function searchUsers(q) {
   renderUserList();
 }
 
+// Храним непрочитанные сообщения в localStorage
+let unreadChats = JSON.parse(localStorage.getItem('sakhachat_unread') || '{}');
+
+function markAsRead(userId) {
+  if (unreadChats[userId]) {
+    delete unreadChats[userId];
+    localStorage.setItem('sakhachat_unread', JSON.stringify(unreadChats));
+  }
+}
+
+function markAsUnread(userId) {
+  unreadChats[userId] = true;
+  localStorage.setItem('sakhachat_unread', JSON.stringify(unreadChats));
+}
+
 function renderUserList() {
   const list = document.getElementById('user-list');
   list.innerHTML = '';
   const searchValue = document.getElementById('search').value.trim();
   const isSearching = searchValue.length >= 3;
   
-  // Определяем цвет текста в зависимости от темы
   const isDark = document.body.classList.contains('dark');
   const titleColor = isDark ? '#e4e6eb' : '#555';
   const textColor = isDark ? '#b0b3b8' : '#888';
@@ -161,14 +186,16 @@ function renderUserList() {
 
   for (const u of usersCache) {
     const isOnline = onlineUsers.has(u.id);
+    const isUnread = unreadChats[u.id] && !(currentChat && currentChat.id === u.id);
     const div = document.createElement('div');
     div.className = 'user-item' + (currentChat && currentChat.id === u.id ? ' active' : '');
     div.innerHTML = `
       <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
       <div>
-        <div class="name">${escapeHtml(u.displayName)}</div>
+        <div class="name" style="${isUnread ? 'font-weight: 800;' : ''}">${escapeHtml(u.displayName)}</div>
         <div class="username">@${escapeHtml(u.username)}</div>
       </div>
+      ${isUnread ? '<span style="margin-left: auto; background: #667eea; color: white; border-radius: 50%; width: 10px; height: 10px; display: block;"></span>' : ''}
     `;
     div.onclick = () => openChat(u);
     list.appendChild(div);
@@ -184,6 +211,9 @@ async function openChat(user) {
   document.getElementById('search').value = '';
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
+  // Помечаем чат как прочитанный при открытии
+  markAsRead(user.id);
+  
   currentChat = user;
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
@@ -209,7 +239,6 @@ function closeChatOnMobile() {
   loadChats();
 }
 
-// Функция для красивого отображения времени
 function formatLastSeen(lastSeenStr) {
   if (!lastSeenStr) return 'был(а) недавно';
   
@@ -238,7 +267,7 @@ function formatLastSeen(lastSeenStr) {
 function updateStatus() {
   if (!currentChat) return;
   const el = document.getElementById('chat-status');
-  
+
   if (onlineUsers.has(currentChat.id)) {
     el.textContent = 'в сети';
     el.className = 'status';
@@ -307,6 +336,7 @@ function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text || !currentChat) return;
+  
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
     loadChats();
@@ -329,6 +359,8 @@ async function openSettings() {
   if (themeToggle) {
     themeToggle.checked = document.body.classList.contains('dark');
   }
+
+  updateNotifButton();
 
   try {
     const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } });
@@ -459,7 +491,6 @@ function applyTheme(isDark) {
   const toggle = document.getElementById('theme-toggle');
   if (toggle) toggle.checked = isDark;
   
-  // Перерисовываем список, чтобы обновить цвета подсказок
   if (typeof renderUserList === 'function') renderUserList();
 }
 
@@ -474,6 +505,93 @@ function toggleTheme(isDark) {
   else if (savedTheme === 'light') applyTheme(false);
   else applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
 })();
+
+// ==================== УВЕДОМЛЕНИЯ ====================
+function requestNotifications() {
+  if (!('Notification' in window)) {
+    alert('Ваш браузер не поддерживает уведомления');
+    return;
+  }
+
+  Notification.requestPermission().then((permission) => {
+    updateNotifButton();
+    if (permission === 'granted') {
+      showNotification('SakhaChat', 'Уведомления включены!');
+    }
+  });
+}
+
+function updateNotifButton() {
+  const btn = document.getElementById('notif-btn');
+  const text = document.getElementById('notif-text');
+  if (!btn) return;
+
+  if (!('Notification' in window)) {
+    btn.textContent = 'Не поддерживается';
+    btn.disabled = true;
+    btn.style.background = '#888';
+    text.textContent = 'Браузер не поддерживает уведомления';
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    btn.textContent = 'Включено';
+    btn.style.background = '#4caf50';
+    btn.disabled = true;
+    text.textContent = 'Уведомления включены';
+  } else if (Notification.permission === 'denied') {
+    btn.textContent = 'Заблокировано';
+    btn.style.background = '#e53935';
+    btn.disabled = true;
+    text.textContent = 'Разрешите уведомления в настройках браузера';
+  } else {
+    btn.textContent = 'Включить';
+    btn.style.background = '#667eea';
+    btn.disabled = false;
+    text.textContent = 'Включить звук и всплывающие окна';
+  }
+}
+
+function showNotification(title, body) {
+  if (Notification.permission !== 'granted') return;
+  if (!document.hidden) return;
+
+  try {
+    const notif = new Notification(title, {
+      body: body.length > 100 ? body.slice(0, 100) + '...' : body,
+      tag: 'sakhachat-msg',
+      silent: true
+    });
+    notif.onclick = () => {
+      window.focus();
+      notif.close();
+    };
+  } catch (e) {
+    console.log('Не удалось показать уведомление:', e);
+  }
+}
+
+function playNotificationSound() {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+
+    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.3);
+  } catch (e) {
+    console.log('Звук недоступен:', e);
+  }
+}
 
 // --- Boot ---
 if (token && me) initApp();

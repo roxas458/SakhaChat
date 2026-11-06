@@ -3,7 +3,7 @@ let me = JSON.parse(localStorage.getItem('sakhachat_user') || 'null');
 let socket = null;
 let currentChat = null; // {id, displayName, username}
 let onlineUsers = new Set();
-let usersCache = [];
+let usersCache = []; // Здесь хранится либо список чатов, либо результат поиска
 
 // --- Утилиты ---
 function isMobile() {
@@ -85,7 +85,7 @@ function initApp() {
   document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
 
   connectSocket();
-  searchUsers('');
+  loadChats(); // Загружаем список наших чатов
 }
 
 function connectSocket() {
@@ -98,6 +98,9 @@ function connectSocket() {
   socket.on('new_message', (msg) => {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
+    } else {
+      // Если сообщение пришло от кого-то другого — обновляем список чатов
+      loadChats();
     }
   });
   socket.on('connect_error', () => {
@@ -107,9 +110,27 @@ function connectSocket() {
   });
 }
 
-// --- Users ---
+// --- Users & Chats ---
+async function loadChats() {
+  const r = await fetch('/api/chats', {
+    headers: { Authorization: 'Bearer ' + token }
+  });
+  if (!r.ok) return;
+  usersCache = await r.json();
+  renderUserList();
+}
+
 async function searchUsers(q) {
-  const r = await fetch('/api/users?q=' + encodeURIComponent(q), {
+  const query = q.trim();
+  
+  // Если очистили поиск (меньше 3 символов) — загружаем список чатов
+  if (query.length < 3) {
+    loadChats();
+    return;
+  }
+
+  // Если ввели 3+ символа — ищем по точному логину
+  const r = await fetch('/api/users?q=' + encodeURIComponent(query), {
     headers: { Authorization: 'Bearer ' + token }
   });
   if (!r.ok) return;
@@ -120,10 +141,39 @@ async function searchUsers(q) {
 function renderUserList() {
   const list = document.getElementById('user-list');
   list.innerHTML = '';
+  
+  const searchValue = document.getElementById('search').value.trim();
+  const isSearching = searchValue.length >= 3;
+
+  // Если никого не нашли
   if (!usersCache.length) {
-    list.innerHTML = '<p style="padding:16px;color:#999;font-size:14px;text-align:center">Никого не найдено</p>';
+    if (isSearching) {
+      // Ищем, но не нашли
+      list.innerHTML = `
+        <div style="padding: 30px 20px; text-align: center; color: #888;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🤷‍♂️</div>
+          <div style="font-size: 14px; font-weight: 600; color: #555; margin-bottom: 8px;">Пользователь не найден</div>
+          <div style="font-size: 13px; line-height: 1.5;">
+            Проверьте правильность написания логина (только латиница, без @).
+          </div>
+        </div>
+      `;
+    } else {
+      // Не ищем, и нет чатов
+      list.innerHTML = `
+        <div style="padding: 30px 20px; text-align: center; color: #888;">
+          <div style="font-size: 40px; margin-bottom: 12px;">💬</div>
+          <div style="font-size: 15px; font-weight: 600; color: #555; margin-bottom: 8px;">Нет сообщений</div>
+          <div style="font-size: 13px; line-height: 1.5;">
+            Введите <b>точный логин</b> друга в поле поиска выше, чтобы найти его и начать общение.
+          </div>
+        </div>
+      `;
+    }
     return;
   }
+
+  // Если есть кого показать — рисуем карточки
   for (const u of usersCache) {
     const isOnline = onlineUsers.has(u.id);
     const div = document.createElement('div');
@@ -148,6 +198,9 @@ function escapeHtml(s) {
 
 // --- Chat ---
 async function openChat(user) {
+  // Очищаем поиск при открытии чата, чтобы список не прыгал
+  document.getElementById('search').value = '';
+
   // На телефоне скрываем список, показываем чат
   if (isMobile()) {
     document.getElementById('sidebar').classList.add('hidden');
@@ -159,7 +212,9 @@ async function openChat(user) {
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
   document.getElementById('chat-name').textContent = user.displayName;
   updateStatus();
-  renderUserList();
+  
+  // Загружаем список чатов (чтобы выделить активный)
+  loadChats();
 
   const r = await fetch('/api/messages/' + user.id, {
     headers: { Authorization: 'Bearer ' + token }
@@ -182,7 +237,7 @@ function closeChatOnMobile() {
   currentChat = null;
   document.getElementById('chat').style.display = 'none';
   document.getElementById('empty-chat').style.display = 'flex';
-  renderUserList();
+  loadChats();
 }
 
 function updateStatus() {
@@ -225,6 +280,8 @@ function sendMessage() {
   if (!text || !currentChat) return;
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
+    // После отправки первого сообщения обновляем список чатов, чтобы собеседник там появился
+    loadChats();
   });
   input.value = '';
   // На телефоне не фокусим (клавиатура прыгает), на десктопе — фокусим
@@ -232,11 +289,12 @@ function sendMessage() {
 }
 
 // ==================== НАСТРОЙКИ ПРОФИЛЯ ====================
+// ... (код настроек остается без изменений, я его не трогал) ...
+
 async function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.style.display = 'flex';
 
-  // Очищаем поля от прошлых значений
   document.getElementById('settings-error').textContent = '';
   document.getElementById('settings-success').textContent = '';
   document.getElementById('settings-currentPassword').value = '';
@@ -252,13 +310,11 @@ async function openSettings() {
       return;
     }
 
-    // Аватар и данные
     document.getElementById('settings-avatar').textContent = data.displayName[0].toUpperCase();
     document.getElementById('settings-username-display').textContent = data.displayName;
     document.getElementById('settings-username').textContent = '@' + data.username;
     document.getElementById('settings-displayName').value = data.displayName;
 
-    // Дата регистрации
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
       const formatted = d.toLocaleDateString('ru-RU', {
@@ -319,17 +375,14 @@ async function saveProfile() {
       return;
     }
 
-    // Обновляем локального пользователя
     me.displayName = data.displayName;
     localStorage.setItem('sakhachat_user', JSON.stringify(me));
 
-    // Обновляем интерфейс
     document.getElementById('me-name').textContent = me.displayName;
     document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
     document.getElementById('settings-avatar').textContent = me.displayName[0].toUpperCase();
     document.getElementById('settings-username-display').textContent = me.displayName;
 
-    // Очищаем поля пароля
     document.getElementById('settings-currentPassword').value = '';
     document.getElementById('settings-newPassword').value = '';
 
@@ -337,10 +390,8 @@ async function saveProfile() {
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
 
-    // Перезапрашиваем список пользователей, чтобы обновить имя у собеседников
-    searchUsers(document.getElementById('search').value);
+    loadChats(); // Обновляем список чатов, чтобы новое имя применилось
 
-    // Закрываем через 1.5 сек
     setTimeout(() => {
       const modal = document.getElementById('settings-modal');
       if (modal.style.display !== 'none') closeSettings();
@@ -352,7 +403,6 @@ async function saveProfile() {
   }
 }
 
-// Закрытие модалки по клику на фон и Escape
 document.addEventListener('click', (e) => {
   const modal = document.getElementById('settings-modal');
   if (!modal || modal.style.display === 'none') return;

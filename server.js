@@ -140,16 +140,48 @@ app.post('/api/profile', auth, (req, res) => {
 
 // ============ USERS ============
 
-// Search users
+// Search users (строго по точному логину)
 app.get('/api/users', auth, (req, res) => {
-  const q = (req.query.q || '').toLowerCase();
+  const q = (req.query.q || '').toLowerCase().trim();
+  
+  // Если строка пустая или слишком короткая — никого не показываем
+  if (!q || q.length < 3) {
+    return res.json([]);
+  }
+
+  // Ищем строго по совпадению логина (username)
   const users = db.prepare(
-    'SELECT id, username, display_name FROM users WHERE (LOWER(username) LIKE ? OR LOWER(display_name) LIKE ?) AND id != ? LIMIT 20'
-  ).all(`%${q}%`, `%${q}%`, req.userId);
+    'SELECT id, username, display_name FROM users WHERE LOWER(username) = ? AND id != ? LIMIT 1'
+  ).all(q, req.userId);
+  
   res.json(toNumArr(users).map(u => ({
     id: u.id,
     username: u.username,
     displayName: u.display_name
+  })));
+});
+
+// ============ МОИ ЧАТЫ ============
+
+// Получить список моих активных чатов (с кем была переписка)
+app.get('/api/chats', auth, (req, res) => {
+  // Ищем последнее сообщение с каждым уникальным пользователем
+  const chats = db.prepare(`
+    SELECT 
+      u.id, u.username, u.display_name,
+      MAX(m.created_at) as last_message_time
+    FROM users u
+    JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
+    WHERE (m.sender_id = ? OR m.receiver_id = ?) AND u.id != ?
+    GROUP BY u.id
+    ORDER BY last_message_time DESC
+  `).all(req.userId, req.userId, req.userId);
+
+  res.json(toNumArr(chats).map(u => ({
+    id: u.id,
+    username: u.username,
+    displayName: u.display_name,
+    lastMessageTime: u.last_message_time
   })));
 });
 

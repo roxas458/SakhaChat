@@ -109,7 +109,6 @@ async function loadChats() {
   if (!r.ok) return;
   usersCache = await r.json();
   
-  // Обновляем данные текущего чата (last_seen мог измениться)
   if (currentChat) {
     const updated = usersCache.find(u => u.id === currentChat.id);
     if (updated) currentChat.lastSeen = updated.lastSeen;
@@ -133,12 +132,29 @@ function renderUserList() {
   list.innerHTML = '';
   const searchValue = document.getElementById('search').value.trim();
   const isSearching = searchValue.length >= 3;
+  
+  // Определяем цвет текста в зависимости от темы
+  const isDark = document.body.classList.contains('dark');
+  const titleColor = isDark ? '#e4e6eb' : '#555';
+  const textColor = isDark ? '#b0b3b8' : '#888';
 
   if (!usersCache.length) {
     if (isSearching) {
-      list.innerHTML = `<div style="padding: 30px 20px; text-align: center; color: #888;"><div style="font-size: 40px; margin-bottom: 12px;">🤷‍♂️</div><div style="font-size: 14px; font-weight: 600; color: #555; margin-bottom: 8px;">Пользователь не найден</div></div>`;
+      list.innerHTML = `
+        <div style="padding: 30px 20px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🤷‍♂️</div>
+          <div style="font-size: 14px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">Пользователь не найден</div>
+          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">Проверьте правильность написания логина (только латиница, без @).</div>
+        </div>
+      `;
     } else {
-      list.innerHTML = `<div style="padding: 30px 20px; text-align: center; color: #888;"><div style="font-size: 40px; margin-bottom: 12px;">💬</div><div style="font-size: 15px; font-weight: 600; color: #555; margin-bottom: 8px;">Нет сообщений</div></div>`;
+      list.innerHTML = `
+        <div style="padding: 30px 20px; text-align: center;">
+          <div style="font-size: 40px; margin-bottom: 12px;">🔒</div>
+          <div style="font-size: 15px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">Поиск друзей</div>
+          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">Введите <b>точный логин</b> друга в поле поиска выше, чтобы найти его и начать общение.</div>
+        </div>
+      `;
     }
     return;
   }
@@ -227,7 +243,6 @@ function updateStatus() {
     el.textContent = 'в сети';
     el.className = 'status';
   } else {
-    // Показываем, когда был в сети
     el.textContent = formatLastSeen(currentChat.lastSeen);
     el.className = 'status offline';
   }
@@ -443,6 +458,9 @@ function applyTheme(isDark) {
   else document.body.classList.remove('dark');
   const toggle = document.getElementById('theme-toggle');
   if (toggle) toggle.checked = isDark;
+  
+  // Перерисовываем список, чтобы обновить цвета подсказок
+  if (typeof renderUserList === 'function') renderUserList();
 }
 
 function toggleTheme(isDark) {

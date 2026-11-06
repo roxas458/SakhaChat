@@ -29,13 +29,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_msg_pair ON messages(sender_id, receiver_id);
 `);
 
-// ============ ОБНОВЛЕНИЕ БАЗЫ ============
-// 1. Добавляем bio (описание профиля)
+// Добавляем bio (описание профиля)
 try {
   db.exec('ALTER TABLE users ADD COLUMN bio TEXT DEFAULT "";');
 } catch (e) { /* Колонка уже существует */ }
 
-// 2. Оставляем колонки для галочек (чтобы старый код не падал)
+// Добавляем last_seen (время последнего визита)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN last_seen DATETIME;');
+} catch (e) { /* Колонка уже существует */ }
+
+// Оставляем колонки для галочек (чтобы старый код не падал)
 try {
   db.exec('ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0;');
 } catch (e) { /* Колонка уже существует */ }

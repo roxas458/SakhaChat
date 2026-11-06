@@ -90,11 +90,13 @@ function initApp() {
 
 function connectSocket() {
   socket = io({ auth: { token } });
+  
   socket.on('online', (ids) => {
     onlineUsers = new Set(ids);
     renderUserList();
     updateStatus();
   });
+
   socket.on('new_message', (msg) => {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
@@ -103,8 +105,8 @@ function connectSocket() {
       loadChats();
     }
   });
+
   socket.on('connect_error', () => {
-    // токен недействителен
     localStorage.clear();
     location.reload();
   });
@@ -148,32 +150,26 @@ function renderUserList() {
   // Если никого не нашли
   if (!usersCache.length) {
     if (isSearching) {
-      // Ищем, но не нашли
       list.innerHTML = `
         <div style="padding: 30px 20px; text-align: center; color: #888;">
           <div style="font-size: 40px; margin-bottom: 12px;">🤷‍♂️</div>
           <div style="font-size: 14px; font-weight: 600; color: #555; margin-bottom: 8px;">Пользователь не найден</div>
-          <div style="font-size: 13px; line-height: 1.5;">
-            Проверьте правильность написания логина (только латиница, без @).
-          </div>
+          <div style="font-size: 13px; line-height: 1.5;">Проверьте логин.</div>
         </div>
       `;
     } else {
-      // Не ищем, и нет чатов
       list.innerHTML = `
         <div style="padding: 30px 20px; text-align: center; color: #888;">
           <div style="font-size: 40px; margin-bottom: 12px;">💬</div>
           <div style="font-size: 15px; font-weight: 600; color: #555; margin-bottom: 8px;">Нет сообщений</div>
-          <div style="font-size: 13px; line-height: 1.5;">
-            Введите <b>точный логин</b> друга в поле поиска выше, чтобы найти его и начать общение.
-          </div>
+          <div style="font-size: 13px; line-height: 1.5;">Введите <b>точный логин</b> друга, чтобы начать общение.</div>
         </div>
       `;
     }
     return;
   }
 
-  // Если есть кого показать — рисуем карточки
+  // Рисуем карточки
   for (const u of usersCache) {
     const isOnline = onlineUsers.has(u.id);
     const div = document.createElement('div');
@@ -198,10 +194,8 @@ function escapeHtml(s) {
 
 // --- Chat ---
 async function openChat(user) {
-  // Очищаем поиск при открытии чата, чтобы список не прыгал
   document.getElementById('search').value = '';
 
-  // На телефоне скрываем список, показываем чат
   if (isMobile()) {
     document.getElementById('sidebar').classList.add('hidden');
   }
@@ -212,8 +206,6 @@ async function openChat(user) {
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
   document.getElementById('chat-name').textContent = user.displayName;
   updateStatus();
-  
-  // Загружаем список чатов (чтобы выделить активный)
   loadChats();
 
   const r = await fetch('/api/messages/' + user.id, {
@@ -225,13 +217,11 @@ async function openChat(user) {
   for (const m of messages) appendMessage(m, false);
   scrollBottom();
 
-  // Фокусим поле только на десктопе (на телефоне это вызывает прыжок клавиатуры)
   if (!isMobile()) {
     document.getElementById('message-input').focus();
   }
 }
 
-// Возврат к списку на телефоне (вызывается кнопкой «←»)
 function closeChatOnMobile() {
   document.getElementById('sidebar').classList.remove('hidden');
   currentChat = null;
@@ -252,15 +242,18 @@ function updateStatus() {
   }
 }
 
+// ПРОСТАЯ ОТРИСОВКА СООБЩЕНИЙ (БЕЗ ГАЛОЧЕК)
 function appendMessage(msg, animate) {
   const container = document.getElementById('messages');
   const isMine = msg.sender_id === me.id;
   const div = document.createElement('div');
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   if (!animate) div.style.animation = 'none';
+  
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', {
     hour: '2-digit', minute: '2-digit'
   });
+  
   div.innerHTML = escapeHtml(msg.text) + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
@@ -268,7 +261,6 @@ function appendMessage(msg, animate) {
 
 function scrollBottom() {
   const c = document.getElementById('messages');
-  // На мобильных лучше срабатывает через requestAnimationFrame
   requestAnimationFrame(() => {
     c.scrollTop = c.scrollHeight;
   });
@@ -280,17 +272,13 @@ function sendMessage() {
   if (!text || !currentChat) return;
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
-    // После отправки первого сообщения обновляем список чатов, чтобы собеседник там появился
     loadChats();
   });
   input.value = '';
-  // На телефоне не фокусим (клавиатура прыгает), на десктопе — фокусим
   if (!isMobile()) input.focus();
 }
 
 // ==================== НАСТРОЙКИ ПРОФИЛЯ ====================
-// ... (код настроек остается без изменений, я его не трогал) ...
-
 async function openSettings() {
   const modal = document.getElementById('settings-modal');
   modal.style.display = 'flex';
@@ -299,6 +287,11 @@ async function openSettings() {
   document.getElementById('settings-success').textContent = '';
   document.getElementById('settings-currentPassword').value = '';
   document.getElementById('settings-newPassword').value = '';
+
+  const themeToggle = document.getElementById('theme-toggle');
+  if (themeToggle) {
+    themeToggle.checked = document.body.classList.contains('dark');
+  }
 
   try {
     const r = await fetch('/api/me', {
@@ -390,7 +383,7 @@ async function saveProfile() {
     saveBtn.disabled = false;
     saveBtn.textContent = originalText;
 
-    loadChats(); // Обновляем список чатов, чтобы новое имя применилось
+    loadChats();
 
     setTimeout(() => {
       const modal = document.getElementById('settings-modal');
@@ -414,6 +407,34 @@ document.addEventListener('keydown', (e) => {
     closeSettings();
   }
 });
+
+// ==================== ТЁМНАЯ ТЕМА ====================
+function applyTheme(isDark) {
+  if (isDark) {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
+  const toggle = document.getElementById('theme-toggle');
+  if (toggle) toggle.checked = isDark;
+}
+
+function toggleTheme(isDark) {
+  localStorage.setItem('sakhachat_theme', isDark ? 'dark' : 'light');
+  applyTheme(isDark);
+}
+
+// Применяем тему при загрузке: сохранённую, или системную
+(function initTheme() {
+  const savedTheme = localStorage.getItem('sakhachat_theme');
+  if (savedTheme === 'dark') {
+    applyTheme(true);
+  } else if (savedTheme === 'light') {
+    applyTheme(false);
+  } else {
+    applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+})();
 
 // --- Boot ---
 if (token && me) {

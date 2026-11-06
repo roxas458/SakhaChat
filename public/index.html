@@ -109,6 +109,19 @@
         <input type="password" id="settings-newPassword" class="modal-input" placeholder="Новый пароль (от 4 символов)" autocomplete="new-password">
         <p class="field-hint">Оставьте пустым, если не хотите менять</p>
 
+        <hr class="modal-divider">
+
+        <!-- Оформление -->
+        <label class="field-label">Оформление</label>
+        <div class="theme-switch-row">
+          <span>Тёмная тема</span>
+          <label class="theme-switch">
+            <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)">
+            <span class="theme-slider"></span>
+          </label>
+        </div>
+        <p class="field-hint">Применяется сразу ко всему мессенджеру</p>
+
         <p class="error" id="settings-error"></p>
         <p class="success" id="settings-success"></p>
       </div>

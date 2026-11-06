@@ -242,12 +242,57 @@ function updateStatus() {
   }
 }
 
-// Отрисовка сообщений (без галочек)
+// --- Отрисовка сообщений с разделителями дат ---
+
+function formatDateForDivider(dateStr) {
+  const d = new Date(dateStr + 'Z');
+  const now = new Date();
+  
+  // Сбрасываем время у обеих дат для сравнения
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  
+  const diffTime = today - msgDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Сегодня';
+  if (diffDays === 1) return 'Вчера';
+  
+  // Иначе полная дата
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function appendMessage(msg, animate) {
   const container = document.getElementById('messages');
+  
+  // Проверяем, нужно ли добавить разделитель даты
+  const lastMsgEl = container.querySelector('.message:last-child');
+  let needDateDivider = false;
+  
+  if (!lastMsgEl) {
+    // Это первое сообщение в чате — дата нужна
+    needDateDivider = true;
+  } else {
+    // Берем дату предыдущего сообщения из data-атрибута
+    const prevDateStr = lastMsgEl.dataset.createdAt;
+    if (prevDateStr && prevDateStr.slice(0, 10) !== msg.created_at.slice(0, 10)) {
+      needDateDivider = true;
+    }
+  }
+
+  if (needDateDivider) {
+    const dateDiv = document.createElement('div');
+    dateDiv.className = 'date-divider';
+    dateDiv.textContent = formatDateForDivider(msg.created_at);
+    container.appendChild(dateDiv);
+  }
+
+  // Рисуем само сообщение
   const isMine = msg.sender_id === me.id;
   const div = document.createElement('div');
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
+  div.dataset.createdAt = msg.created_at; // Сохраняем дату для сравнения
+  
   if (!animate) div.style.animation = 'none';
   
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', {

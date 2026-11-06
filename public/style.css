@@ -771,7 +771,7 @@ body.dark .bio-box {
   background: #f0f2f5;
   padding: 8px 14px;
   border-radius: 20px;
-  display: block; /* По умолчанию display:none ставится в HTML, тут стили для отображения */
+  display: block;
   margin: 16px auto 0;
   text-align: center;
   width: fit-content;
@@ -780,5 +780,23 @@ body.dark .bio-box {
 
 body.dark #view-profile-chat-date {
   background: #2a2a2a;
+  color: #b0b3b8;
+}
+
+/* ==================== РАЗДЕЛИТЕЛИ ДАТ В ЧАТЕ ==================== */
+.date-divider {
+  align-self: center;
+  background: rgba(0, 0, 0, 0.08);
+  color: #555;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 12px;
+  margin: 12px 0 8px;
+  text-transform: capitalize;
+}
+
+body.dark .date-divider {
+  background: rgba(255, 255, 255, 0.1);
   color: #b0b3b8;
 }

@@ -66,7 +66,11 @@ const i18n = {
     saving: 'Сохранение...',
     profileUpdated: 'Профиль обновлён!',
     profileAndPasswordUpdated: 'Профиль и пароль обновлены!',
-    nameEmpty: 'Имя не может быть пустым'
+    nameEmpty: 'Имя не может быть пустым',
+    saved: 'Избранное',
+    savedHint: 'Заметки для себя',
+    savedOnly: 'Только для тебя',
+    savedEmpty: 'Не удалось загрузить'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -127,7 +131,11 @@ const i18n = {
     saving: 'Уларытыы...',
     profileUpdated: 'Профил уларытылынна!',
     profileAndPasswordUpdated: 'Профил уонна кистэл уларытылынна!',
-    nameEmpty: 'Ааккыт кураанах буолбат'
+    nameEmpty: 'Ааккыт кураанах буолбат',
+    saved: 'Талыллыбыт',
+    savedHint: 'Бэйэҕэр суруктар',
+    savedOnly: 'Эрэ эйиэхэ эрэ',
+    savedEmpty: 'Сабалларбата'
   }
 };
 
@@ -138,31 +146,25 @@ function t(key) {
 }
 
 function applyLanguage() {
-  // Меняем тексты с data-i18n
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     el.innerHTML = t(key);
   });
-  // Меняем placeholder
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
     el.placeholder = t(key);
   });
-  // Меняем title
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
     el.title = t(key);
   });
   
-  // Обновляем переключатель языка
   const langSelect = document.getElementById('lang-select');
   if (langSelect) langSelect.value = currentLang;
 
-  // Обновляем динамические тексты
   if (typeof renderUserList === 'function') renderUserList();
   if (typeof updateStatus === 'function') updateStatus();
   
-  // Обновляем title страницы
   document.title = 'SakhaChat';
 }
 
@@ -283,7 +285,7 @@ async function loadChats() {
   if (!r.ok) return;
   usersCache = await r.json();
   
-  if (currentChat) {
+  if (currentChat && currentChat.id !== 'saved') {
     const updated = usersCache.find(u => u.id === currentChat.id);
     if (updated) currentChat.lastSeen = updated.lastSeen;
     updateStatus();
@@ -324,6 +326,26 @@ function renderUserList() {
   const titleColor = isDark ? '#e4e6eb' : '#555';
   const textColor = isDark ? '#b0b3b8' : '#888';
 
+  // 1. Добавляем «Избранное» ВСЕГДА (если не ищем)
+  if (!isSearching) {
+    const savedDiv = document.createElement('div');
+    savedDiv.className = 'user-item' + (currentChat && currentChat.id === 'saved' ? ' active' : '');
+    savedDiv.innerHTML = `
+      <div class="avatar" style="background: linear-gradient(135deg, #f5af19, #f12711);">⭐</div>
+      <div>
+        <div class="name">${t('saved')}</div>
+        <div class="username">${t('savedHint')}</div>
+      </div>
+    `;
+    savedDiv.onclick = () => openSavedChat();
+    list.appendChild(savedDiv);
+
+    // Разделитель
+    const divider = document.createElement('div');
+    divider.style.cssText = `height: 1px; background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}; margin: 6px 8px;`;
+    list.appendChild(divider);
+  }
+
   if (!usersCache.length) {
     if (isSearching) {
       list.innerHTML = `
@@ -334,7 +356,7 @@ function renderUserList() {
         </div>
       `;
     } else {
-      list.innerHTML = `
+      list.innerHTML += `
         <div style="padding: 30px 20px; text-align: center;">
           <div style="font-size: 40px; margin-bottom: 12px;">🔒</div>
           <div style="font-size: 15px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">${t('findFriends')}</div>
@@ -396,9 +418,45 @@ async function openChat(user) {
   if (!isMobile()) document.getElementById('message-input').focus();
 }
 
+// --- Избранное ---
+async function openSavedChat() {
+  document.getElementById('search').value = '';
+  if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
+
+  currentChat = { id: 'saved', displayName: t('saved'), username: 'saved' };
+
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  document.getElementById('empty-chat').style.display = 'none';
+  document.getElementById('chat').style.display = 'flex';
+  document.getElementById('chat-avatar').textContent = '⭐';
+  document.getElementById('chat-avatar').style.background = 'linear-gradient(135deg, #f5af19, #f12711)';
+  document.getElementById('chat-name').textContent = t('saved');
+  document.getElementById('chat-status').textContent = t('savedOnly');
+  document.getElementById('chat-status').className = 'status';
+  
+  renderUserList();
+
+  try {
+    const r = await fetch('/api/saved-messages', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Ошибка загрузки');
+    const messages = await r.json();
+
+    container.innerHTML = '';
+    for (const m of messages) appendMessage(m, false);
+    scrollBottom();
+  } catch (e) {
+    container.innerHTML = `<div style="text-align: center; padding: 40px; color: #e53935;">${t('savedEmpty')}</div>`;
+  }
+
+  if (!isMobile()) document.getElementById('message-input').focus();
+}
+
 function closeChatOnMobile() {
   document.getElementById('sidebar').classList.remove('hidden');
   currentChat = null;
+  document.getElementById('chat-avatar').style.background = ''; // Сброс фона
   document.getElementById('chat').style.display = 'none';
   document.getElementById('empty-chat').style.display = 'flex';
   loadChats();
@@ -417,7 +475,7 @@ function formatLastSeen(lastSeenStr) {
   
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24 && now.getDate() === d.getDate()) {
-    return t('wasTodayAt').replace('{time}', d.toLocaleTimeString(currentLang === 'sah' ? 'ru-RU' : 'ru-RU', {hour: '2-digit', minute:'2-digit'}));
+    return t('wasTodayAt').replace('{time}', d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}));
   }
   
   const yesterday = new Date(now);
@@ -431,6 +489,11 @@ function formatLastSeen(lastSeenStr) {
 
 function updateStatus() {
   if (!currentChat) return;
+  if (currentChat.id === 'saved') {
+    document.getElementById('chat-status').textContent = t('savedOnly');
+    document.getElementById('chat-status').className = 'status';
+    return;
+  }
   const el = document.getElementById('chat-status');
 
   if (onlineUsers.has(currentChat.id)) {
@@ -501,6 +564,24 @@ function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text || !currentChat) return;
+
+  // Если это Избранное — отправляем через REST API
+  if (currentChat.id === 'saved') {
+    fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ text })
+    })
+    .then(r => r.json())
+    .then(msg => {
+      appendMessage(msg, true);
+      input.value = '';
+    })
+    .catch(e => alert(t('errorNetwork')));
+
+    if (!isMobile()) input.focus();
+    return;
+  }
   
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
@@ -525,7 +606,6 @@ async function openSettings() {
     themeToggle.checked = document.body.classList.contains('dark');
   }
 
-  // Синхронизируем выбор языка
   const langSelect = document.getElementById('lang-select');
   if (langSelect) langSelect.value = currentLang;
 
@@ -596,7 +676,7 @@ async function saveProfile() {
 
 // ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
 async function openViewProfile() {
-  if (!currentChat) return;
+  if (!currentChat || currentChat.id === 'saved') return; // Для избранного профиль не нужен
   const modal = document.getElementById('view-profile-modal');
   
   modal.style.display = 'flex';

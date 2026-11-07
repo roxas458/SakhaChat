@@ -128,7 +128,7 @@ app.get('/api/users', auth, (req, res) => {
   res.json(toNumArr(users).map(u => ({ id: u.id, username: u.username, displayName: u.display_name })));
 });
 
-// Список моих чатов (ДОБАВЛЕН last_seen)
+// Список моих чатов
 app.get('/api/chats', auth, (req, res) => {
   const chats = db.prepare(`
     SELECT 
@@ -159,6 +159,31 @@ app.get('/api/messages/:userId', auth, (req, res) => {
     ORDER BY created_at ASC LIMIT 200
   `).all(req.userId, otherId, otherId, req.userId);
   res.json(toNumArr(msgs));
+});
+
+// ============ ИЗБРАННОЕ ============
+
+// Получить избранные сообщения (заметки себе)
+app.get('/api/saved-messages', auth, (req, res) => {
+  const msgs = db.prepare(`
+    SELECT * FROM messages
+    WHERE sender_id = ? AND receiver_id = ?
+    ORDER BY created_at ASC LIMIT 200
+  `).all(req.userId, req.userId);
+  res.json(toNumArr(msgs));
+});
+
+// Отправить сообщение в Избранное (себе)
+app.post('/api/messages', auth, (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
+
+  const result = db.prepare(
+    'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
+  ).run(req.userId, req.userId, text.trim());
+
+  const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
+  res.json(msg);
 });
 
 // Socket.io

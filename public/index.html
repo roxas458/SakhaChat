@@ -70,22 +70,8 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <button id="emoji-btn" type="button" title="Эмодзи" onclick="toggleEmojiPanel(event)">😊</button>
           <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
           <button id="send-btn" onclick="sendMessage()">➤</button>
-        </div>
-
-        <!-- Панель эмодзи -->
-        <div id="emoji-panel" class="emoji-panel" style="display:none">
-          <div class="emoji-tabs">
-            <button type="button" class="emoji-tab active" data-cat="smileys" onclick="switchEmojiTab('smileys', this)">😀</button>
-            <button type="button" class="emoji-tab" data-cat="gestures" onclick="switchEmojiTab('gestures', this)">👍</button>
-            <button type="button" class="emoji-tab" data-cat="hearts" onclick="switchEmojiTab('hearts', this)">❤️</button>
-            <button type="button" class="emoji-tab" data-cat="food" onclick="switchEmojiTab('food', this)">🍕</button>
-            <button type="button" class="emoji-tab" data-cat="nature" onclick="switchEmojiTab('nature', this)">🌿</button>
-            <button type="button" class="emoji-tab" data-cat="objects" onclick="switchEmojiTab('objects', this)">🎉</button>
-          </div>
-          <div class="emoji-grid" id="emoji-grid"></div>
         </div>
       </div>
     </main>

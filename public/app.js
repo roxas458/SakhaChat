@@ -385,75 +385,9 @@ function renderUserList() {
   }
 }
 
-// ==================== ЭМОДЗИ ====================
-const EMOJI_DATA = {
-  smileys: ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥳','😏','😒','😞','😔','😟','😕','🙁','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'],
-  gestures: ['👍','👎','👌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','💪','🦾','🖕','✍️','🤳','💅','👏','🙌','👐','🤲','🤜','🤛','✊','👊','🫶','🫰','🫱','🫲','🫳','🫴'],
-  hearts: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋','🔥','✨','💫','⭐','🌟','💥','💯','🎉','🎊'],
-  food: ['🍕','🍔','🍟','🌭','🥪','🌮','🌯','🥗','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🥠','🥮','🍢','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🥛','☕','🍵','🧃','🥤','🧋','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🧉'],
-  nature: ['🌿','🍀','🍁','🍂','🍃','🌱','🌲','🌳','🌴','🌵','🌾','🌻','🌺','🌸','🌼','🌷','🌹','🥀','💐','🌎','🌍','🌏','🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','⭐','🌟','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','💧','💦','☔','🌈','⚡','🔥','✨'],
-  objects: ['🎉','🎊','🎈','🎁','🎂','🎀','🎗️','🎟️','🎫','🏆','🏅','🥇','🥈','🥉','⚽','🏀','🏈','⚾','🎾','🏐','🏉','🎱','🏓','🏸','🥊','🎯','🎲','🎮','🎰','🎸','🎹','🎺','🎻','🥁','🎤','🎧','📱','💻','⌨️','🖥️','🖨️','🖱️','💾','💿','📀','📷','📹','🎥','📞','☎️','📺','📻','⏰','⌚','💡','🔦','🕯️','💰','💎','🔑','🔒','🔓','📚','📖','📝','✏️','🖊️','🖋️','📌','📎','🔗','🎓','🏠','🏡','🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','✈️','🚀','🛸']
-};
-
-let emojiPanelOpen = false;
-
-function renderEmojiGrid(category) {
-  const grid = document.getElementById('emoji-grid');
-  if (!grid) return;
-  const list = EMOJI_DATA[category] || [];
-  grid.innerHTML = list.map(e =>
-    `<button type="button" onclick="insertEmoji('${e}')">${e}</button>`
-  ).join('');
-}
-
-function switchEmojiTab(category, btn) {
-  document.querySelectorAll('.emoji-tab').forEach(t => t.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  renderEmojiGrid(category);
-}
-
-function toggleEmojiPanel(e) {
-  if (e) e.stopPropagation();
-  const panel = document.getElementById('emoji-panel');
-  if (!panel) return;
-
-  emojiPanelOpen = !emojiPanelOpen;
-  if (emojiPanelOpen) {
-    const activeTab = document.querySelector('.emoji-tab.active');
-    const cat = activeTab ? activeTab.dataset.cat : 'smileys';
-    renderEmojiGrid(cat);
-    panel.style.display = 'flex';
-  } else {
-    panel.style.display = 'none';
-  }
-}
-
-function closeEmojiPanel() {
-  const panel = document.getElementById('emoji-panel');
-  if (!panel) return;
-  panel.style.display = 'none';
-  emojiPanelOpen = false;
-}
-
-function insertEmoji(emoji) {
-  const input = document.getElementById('message-input');
-  if (!input) return;
-
-  const start = input.selectionStart ?? input.value.length;
-  const end = input.selectionEnd ?? input.value.length;
-  const before = input.value.slice(0, start);
-  const after = input.value.slice(end);
-
-  input.value = before + emoji + after;
-  const newPos = start + emoji.length;
-  input.focus();
-  input.setSelectionRange(newPos, newPos);
-}
-
 // --- Chat ---
 async function openChat(user) {
   document.getElementById('search').value = '';
-  closeEmojiPanel();
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   markAsRead(user.id);
@@ -488,7 +422,6 @@ async function openChat(user) {
 // --- Избранное ---
 async function openSavedChat() {
   document.getElementById('search').value = '';
-  closeEmojiPanel();
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   currentChat = { id: 'saved', displayName: t('saved'), username: 'saved' };
@@ -631,8 +564,6 @@ function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text || !currentChat) return;
-
-  closeEmojiPanel();
 
   // Если это Избранное — отправляем через REST API
   if (currentChat.id === 'saved') {
@@ -790,15 +721,6 @@ document.addEventListener('click', (e) => {
   if (modal && modal.style.display !== 'none' && e.target === modal) closeSettings();
   const viewModal = document.getElementById('view-profile-modal');
   if (viewModal && viewModal.style.display !== 'none' && e.target === viewModal) closeViewProfile();
-
-  // Закрытие эмодзи-панели по клику вне
-  if (emojiPanelOpen) {
-    const panel = document.getElementById('emoji-panel');
-    const btn = document.getElementById('emoji-btn');
-    if (panel && !panel.contains(e.target) && btn && !btn.contains(e.target)) {
-      closeEmojiPanel();
-    }
-  }
 });
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('settings-modal');
@@ -806,7 +728,6 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (modal && modal.style.display !== 'none') closeSettings();
     if (viewModal && viewModal.style.display !== 'none') closeViewProfile();
-    if (emojiPanelOpen) closeEmojiPanel();
   }
 });
 

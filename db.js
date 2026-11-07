@@ -1,21 +1,23 @@
 const { Pool } = require('pg');
 
-// Строка подключения из Render (Шаг 1)
-// ⚠️ ЗАМЕНИ на свою строку!
-const connectionString = process.env.DATABASE_URL || 'postgresql://sakhachat_user:9i45TEyar3BWnlbwE3ELo6KEZlZsLahi@dpg-dbnh6iqjnfac73ccantg-a/sakhachat';
+// Строка подключения берётся из переменной окружения DATABASE_URL
+// (мы добавили её в Render → Environment)
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error('❌ DATABASE_URL не задана!');
+  console.error('Добавь её в Render → Environment → DATABASE_URL');
+}
 
 const pool = new Pool({
   connectionString,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 });
 
 // Обёртка, чтобы API был похож на старый (SQLite)
-// В SQLite: db.prepare('SELECT ...').get(a, b) — синхронно
-// В PostgreSQL: async, поэтому методы возвращают Promise
 const db = {
-  // Выполнить запрос (INSERT, UPDATE, DELETE) — вернёт { lastInsertRowid }
+  // Выполнить запрос (INSERT, UPDATE, DELETE)
   async run(sql, params = []) {
-    // Преобразуем "?" в "$1, $2, ..." для PostgreSQL
     const pgSql = convertPlaceholders(sql);
     const result = await pool.query(pgSql, params);
     return { lastInsertRowid: result.rows[0]?.id || null, changes: result.rowCount };

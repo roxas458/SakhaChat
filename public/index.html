@@ -14,22 +14,22 @@
   <div id="auth-screen" class="screen">
     <div class="auth-box">
       <h1>🪶 SakhaChat</h1>
-      <p class="tagline">Кэпсэтиэх, доҕоттор!</p>
+      <p class="tagline" data-i18n="tagline">Кэпсэтиэх, доҕоттор!</p>
       <div id="login-form">
-        <h2>Вход</h2>
-        <input type="text" id="login-username" placeholder="Логин" autocomplete="username">
-        <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password">
-        <button onclick="login()">Войти</button>
-        <p class="switch">Нет аккаунта? <a onclick="showRegister()">Регистрация</a></p>
+        <h2 data-i18n="login">Вход</h2>
+        <input type="text" id="login-username" placeholder="Логин" autocomplete="username" data-i18n-placeholder="loginPlaceholder">
+        <input type="password" id="login-password" placeholder="Пароль" autocomplete="current-password" data-i18n-placeholder="passwordPlaceholder">
+        <button onclick="login()" data-i18n="loginBtn">Войти</button>
+        <p class="switch"><span data-i18n="noAccount">Нет аккаунта?</span> <a onclick="showRegister()" data-i18n="register">Регистрация</a></p>
         <p class="error" id="login-error"></p>
       </div>
       <div id="register-form" style="display:none">
-        <h2>Регистрация</h2>
-        <input type="text" id="reg-username" placeholder="Логин" autocomplete="username">
-        <input type="text" id="reg-display" placeholder="Отображаемое имя" autocomplete="name">
-        <input type="password" id="reg-password" placeholder="Пароль" autocomplete="new-password">
-        <button onclick="register()">Создать</button>
-        <p class="switch">Есть аккаунт? <a onclick="showLogin()">Вход</a></p>
+        <h2 data-i18n="registerTitle">Регистрация</h2>
+        <input type="text" id="reg-username" placeholder="Логин" autocomplete="username" data-i18n-placeholder="loginPlaceholder">
+        <input type="text" id="reg-display" placeholder="Отображаемое имя" autocomplete="name" data-i18n-placeholder="displayNamePlaceholder">
+        <input type="password" id="reg-password" placeholder="Пароль" autocomplete="new-password" data-i18n-placeholder="passwordPlaceholder">
+        <button onclick="register()" data-i18n="registerBtn">Создать</button>
+        <p class="switch"><span data-i18n="haveAccount">Есть аккаунт?</span> <a onclick="showLogin()" data-i18n="login">Вход</a></p>
         <p class="error" id="reg-error"></p>
       </div>
     </div>
@@ -47,21 +47,21 @@
           </div>
         </div>
         <div class="header-buttons">
-          <button class="settings-btn" onclick="openSettings()" title="Настройки">⚙️</button>
-          <button class="logout" onclick="logout()" title="Выйти">⎋</button>
+          <button class="settings-btn" onclick="openSettings()" title="Настройки" data-i18n-title="settingsTitle">⚙️</button>
+          <button class="logout" onclick="logout()" title="Выйти" data-i18n-title="logoutTitle">⎋</button>
         </div>
       </div>
-      <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)">
+      <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)" data-i18n-placeholder="searchPlaceholder">
       <div class="user-list" id="user-list"></div>
     </aside>
     <main class="chat-area">
       <div class="empty-chat" id="empty-chat">
         <div>🪶</div>
-        <p>Выберите собеседника</p>
+        <p data-i18n="selectChat">Выберите собеседника</p>
       </div>
       <div class="chat" id="chat" style="display:none">
         <div class="chat-header">
-          <button class="back-btn" onclick="closeChatOnMobile()" title="Назад">←</button>
+          <button class="back-btn" onclick="closeChatOnMobile()" title="Назад" data-i18n-title="backTitle">←</button>
           <div class="avatar" id="chat-avatar" onclick="openViewProfile()" title="Открыть профиль" style="cursor:pointer"></div>
           <div>
             <div class="name" id="chat-name"></div>
@@ -70,7 +70,7 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off">
+          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
           <button onclick="sendMessage()">➤</button>
         </div>
       </div>
@@ -81,7 +81,7 @@
   <div id="settings-modal" class="modal" style="display:none">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Настройки профиля</h2>
+        <h2 data-i18n="settingsTitle">Настройки профиля</h2>
         <button class="modal-close" onclick="closeSettings()" title="Закрыть">✕</button>
       </div>
 
@@ -95,43 +95,55 @@
           </div>
         </div>
 
-        <label class="field-label">Отображаемое имя</label>
-        <input type="text" id="settings-displayName" class="modal-input" placeholder="Ваше имя" maxlength="40">
-        <p class="field-hint">Как вас будут видеть другие</p>
+        <label class="field-label" data-i18n="displayName">Отображаемое имя</label>
+        <input type="text" id="settings-displayName" class="modal-input" placeholder="Ваше имя" maxlength="40" data-i18n-placeholder="yourName">
+        <p class="field-hint" data-i18n="displayNameHint">Как вас будут видеть другие</p>
 
         <hr class="modal-divider">
 
-        <label class="field-label">О себе</label>
-        <textarea id="settings-bio" class="modal-input" placeholder="Расскажите о себе..." maxlength="150" rows="3"></textarea>
-        <p class="field-hint">До 150 символов. Видно другим пользователям.</p>
+        <label class="field-label" data-i18n="bio">О себе</label>
+        <textarea id="settings-bio" class="modal-input" placeholder="Расскажите о себе..." maxlength="150" rows="3" data-i18n-placeholder="bioPlaceholder"></textarea>
+        <p class="field-hint" data-i18n="bioHint">До 150 символов. Видно другим пользователям.</p>
 
         <hr class="modal-divider">
 
-        <label class="field-label">Смена пароля</label>
-        <input type="password" id="settings-currentPassword" class="modal-input" placeholder="Текущий пароль" autocomplete="current-password">
-        <input type="password" id="settings-newPassword" class="modal-input" placeholder="Новый пароль (от 4 символов)" autocomplete="new-password">
-        <p class="field-hint">Оставьте пустым, если не хотите менять</p>
+        <label class="field-label" data-i18n="changePassword">Смена пароля</label>
+        <input type="password" id="settings-currentPassword" class="modal-input" placeholder="Текущий пароль" autocomplete="current-password" data-i18n-placeholder="currentPassword">
+        <input type="password" id="settings-newPassword" class="modal-input" placeholder="Новый пароль (от 4 символов)" autocomplete="new-password" data-i18n-placeholder="newPassword">
+        <p class="field-hint" data-i18n="passwordHint">Оставьте пустым, если не хотите менять</p>
 
         <hr class="modal-divider">
 
         <!-- Оформление -->
-        <label class="field-label">Оформление</label>
+        <label class="field-label" data-i18n="appearance">Оформление</label>
         <div class="theme-switch-row">
-          <span>Тёмная тема</span>
+          <span data-i18n="darkTheme">Тёмная тема</span>
           <label class="theme-switch">
             <input type="checkbox" id="theme-toggle" onchange="toggleTheme(this.checked)">
             <span class="theme-slider"></span>
           </label>
         </div>
-        <p class="field-hint">Применяется сразу ко всему мессенджеру</p>
+        <p class="field-hint" data-i18n="themeHint">Применяется сразу ко всему мессенджеру</p>
+
+        <hr class="modal-divider">
+
+        <!-- Язык -->
+        <label class="field-label" data-i18n="language">Язык</label>
+        <div class="lang-switch-row">
+          <select id="lang-select" onchange="changeLanguage(this.value)" style="padding: 10px 14px; border-radius: 10px; border: 1px solid #e4e6eb; font-size: 14px; font-family: inherit; background: #f7f8fa; flex: 1; cursor: pointer;">
+            <option value="ru">Русский</option>
+            <option value="sah">Саха тыла</option>
+          </select>
+        </div>
+        <p class="field-hint" data-i18n="languageHint">Применяется сразу ко всему интерфейсу</p>
 
         <p class="error" id="settings-error"></p>
         <p class="success" id="settings-success"></p>
       </div>
 
       <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeSettings()">Отмена</button>
-        <button class="btn-primary" onclick="saveProfile()">Сохранить</button>
+        <button class="btn-secondary" onclick="closeSettings()" data-i18n="cancel">Отмена</button>
+        <button class="btn-primary" onclick="saveProfile()" data-i18n="save">Сохранить</button>
       </div>
     </div>
   </div>
@@ -140,7 +152,7 @@
   <div id="view-profile-modal" class="modal" style="display:none">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>Профиль пользователя</h2>
+        <h2 data-i18n="userProfile">Профиль пользователя</h2>
         <button class="modal-close" onclick="closeViewProfile()" title="Закрыть">✕</button>
       </div>
       <div class="modal-body">
@@ -152,14 +164,14 @@
             <div class="member-since" id="view-profile-created"></div>
           </div>
         </div>
-        <label class="field-label">О себе</label>
-        <div class="bio-box" id="view-profile-bio">Пользователь ничего не рассказал о себе.</div>
+        <label class="field-label" data-i18n="bio">О себе</label>
+        <div class="bio-box" id="view-profile-bio" data-i18n="noBio">Пользователь ничего не рассказал о себе.</div>
         
         <!-- Блок с датой знакомства -->
         <div id="view-profile-chat-date" style="display:none; margin-top: 12px; font-size: 13px; color: #888; text-align: center;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn-secondary" onclick="closeViewProfile()">Закрыть</button>
+        <button class="btn-secondary" onclick="closeViewProfile()" data-i18n="close">Закрыть</button>
       </div>
     </div>
   </div>

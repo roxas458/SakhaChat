@@ -350,7 +350,7 @@ body {
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
-  animation: modalFadeIn 0.15s ease; /* ИСПРАВЛЕНИЕ: убрана анимация выезда */
+  animation: modalFadeIn 0.15s ease;
 }
 
 .modal-header {
@@ -617,3 +617,42 @@ body.dark #view-profile-chat-date { background: #2d2f4a; color: #8a92ff; }
 /* ==================== РАЗДЕЛИТЕЛИ ДАТ В ЧАТЕ ==================== */
 .date-divider { align-self: center; background: rgba(0, 0, 0, 0.06); color: #667eea; font-size: 11px; font-weight: 700; padding: 5px 14px; border-radius: 12px; margin: 16px 0 10px; text-transform: uppercase; letter-spacing: 0.5px; }
 body.dark .date-divider { background: rgba(255, 255, 255, 0.08); color: #8a92ff; }
+
+/* ==================== ВЫБОР ЯЗЫКА ==================== */
+.lang-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+#lang-select {
+  padding: 12px 14px;
+  border: 1px solid #e4e6eb;
+  border-radius: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #f7f8fa;
+  flex: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #1a1a1a;
+}
+
+#lang-select:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+body.dark #lang-select {
+  background: #3a3b3c;
+  border-color: #3e4042;
+  color: #e4e6eb;
+}
+
+body.dark #lang-select:focus {
+  border-color: #7b8cff;
+  background: #2a2b2c;
+}

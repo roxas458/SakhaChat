@@ -5,7 +5,179 @@ let currentChat = null;
 let onlineUsers = new Set();
 let usersCache = [];
 
+// ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
+const i18n = {
+  ru: {
+    tagline: 'Кэпсэтиэх, доҕоттор!',
+    login: 'Вход',
+    loginPlaceholder: 'Логин',
+    passwordPlaceholder: 'Пароль',
+    loginBtn: 'Войти',
+    noAccount: 'Нет аккаунта?',
+    register: 'Регистрация',
+    registerTitle: 'Регистрация',
+    displayNamePlaceholder: 'Отображаемое имя',
+    registerBtn: 'Создать',
+    haveAccount: 'Есть аккаунт?',
+    settingsTitle: 'Настройки профиля',
+    logoutTitle: 'Выйти',
+    searchPlaceholder: 'Поиск пользователей...',
+    selectChat: 'Выберите собеседника',
+    backTitle: 'Назад',
+    messagePlaceholder: 'Сообщение...',
+    displayName: 'Отображаемое имя',
+    yourName: 'Ваше имя',
+    displayNameHint: 'Как вас будут видеть другие',
+    bio: 'О себе',
+    bioPlaceholder: 'Расскажите о себе...',
+    bioHint: 'До 150 символов. Видно другим пользователям.',
+    changePassword: 'Смена пароля',
+    currentPassword: 'Текущий пароль',
+    newPassword: 'Новый пароль (от 4 символов)',
+    passwordHint: 'Оставьте пустым, если не хотите менять',
+    appearance: 'Оформление',
+    darkTheme: 'Тёмная тема',
+    themeHint: 'Применяется сразу ко всему мессенджеру',
+    language: 'Язык',
+    languageHint: 'Применяется сразу ко всему интерфейсу',
+    cancel: 'Отмена',
+    save: 'Сохранить',
+    userProfile: 'Профиль пользователя',
+    noBio: 'Пользователь ничего не рассказал о себе.',
+    close: 'Закрыть',
+    // Динамические
+    inNetwork: 'в сети',
+    notInNetwork: 'не в сети',
+    wasRecently: 'был(а) недавно',
+    wasJustNow: 'был(а) только что',
+    wasMinutesAgo: 'был(а) {n} мин. назад',
+    wasTodayAt: 'был(а) сегодня в {time}',
+    wasYesterdayAt: 'был(а) вчера в {time}',
+    wasDate: 'был(а) {date}',
+    userNotFound: 'Пользователь не найден',
+    checkLogin: 'Проверьте правильность написания логина (только латиница, без @).',
+    findFriends: 'Поиск друзей',
+    enterLogin: 'Введите <b>точный логин</b> друга в поле поиска выше, чтобы найти его и начать общение.',
+    today: 'Сегодня',
+    yesterday: 'Вчера',
+    online: 'в сети',
+    offline: 'был(а) недавно',
+    errorNetwork: 'Ошибка сети',
+    saving: 'Сохранение...',
+    profileUpdated: 'Профиль обновлён!',
+    profileAndPasswordUpdated: 'Профиль и пароль обновлены!',
+    nameEmpty: 'Имя не может быть пустым'
+  },
+  sah: {
+    tagline: 'Кэпсэтиэх, доҕоттор!',
+    login: 'Киирии',
+    loginPlaceholder: 'Логин',
+    passwordPlaceholder: 'Кистэл',
+    loginBtn: 'Киир',
+    noAccount: 'Аккаунт суох?',
+    register: 'Бэлиэтэнии',
+    registerTitle: 'Бэлиэтэнии',
+    displayNamePlaceholder: 'Көстөр ааккыт',
+    registerBtn: 'Оҥор',
+    haveAccount: 'Аккаунт баар?',
+    settingsTitle: 'Бэйэ уларытыыта',
+    logoutTitle: 'Таҕыс',
+    searchPlaceholder: 'Кыттааччыны көрдөө...',
+    selectChat: 'Кэпсэтээччини тал',
+    backTitle: 'Төнүн',
+    messagePlaceholder: 'Сурук...',
+    displayName: 'Көстөр ааккыт',
+    yourName: 'Ааккыт',
+    displayNameHint: 'Атын дьон эйигин хайдах көрүөхтэрэ',
+    bio: 'Бэйэҥ тускунан',
+    bioPlaceholder: 'Бэйэҥ тускунан кэпсээ...',
+    bioHint: '150 бэлиэҕэ дылы. Атын дьоҥҥо көстөр.',
+    changePassword: 'Кистэли уларытыы',
+    currentPassword: 'Билиҥҥи кистэл',
+    newPassword: 'Саҥа кистэл (4 бэлиэттэн)',
+    passwordHint: 'Уларыппат буоллаххына, кураанах хааллар',
+    appearance: 'Көстүү',
+    darkTheme: 'Хараҥа тиэмэ',
+    themeHint: 'Бүтүн мессенджерга тутатына',
+    language: 'Тыл',
+    languageHint: 'Бүтүн интерфейска тутатына',
+    cancel: 'Салҕаа',
+    save: 'Уларыт',
+    userProfile: 'Кыттааччы профила',
+    noBio: 'Кыттааччы бэйэтин тускунан тугу да кэпсээбэтэҕэ.',
+    close: 'Салҕаа',
+    // Динамические
+    inNetwork: 'ситимҥэ',
+    notInNetwork: 'ситимҥэ суох',
+    wasRecently: 'сотору',
+    wasJustNow: 'билигин',
+    wasMinutesAgo: '{n} мүн. ынараа өттүгэр',
+    wasTodayAt: 'бүгүн {time}',
+    wasYesterdayAt: 'бэҕэһээ {time}',
+    wasDate: '{date}',
+    userNotFound: 'Кыттааччы көстүбэтэ',
+    checkLogin: 'Логин суруйуутун көннөр (латиница эрэ, @ суох).',
+    findFriends: 'Доҕоттору көрдөө',
+    enterLogin: 'Үөһээ көрдөөххө <b>сөптөөх логины</b> суруй.',
+    today: 'Бүгүн',
+    yesterday: 'Бэҕэһээ',
+    online: 'ситимҥэ',
+    offline: 'сотору',
+    errorNetwork: 'Ситим алҕаһа',
+    saving: 'Уларытыы...',
+    profileUpdated: 'Профил уларытылынна!',
+    profileAndPasswordUpdated: 'Профил уонна кистэл уларытылынна!',
+    nameEmpty: 'Ааккыт кураанах буолбат'
+  }
+};
+
+let currentLang = localStorage.getItem('sakhachat_lang') || 'ru';
+
+function t(key) {
+  return (i18n[currentLang] && i18n[currentLang][key]) || i18n.ru[key] || key;
+}
+
+function applyLanguage() {
+  // Меняем тексты с data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.innerHTML = t(key);
+  });
+  // Меняем placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = t(key);
+  });
+  // Меняем title
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    el.title = t(key);
+  });
+  
+  // Обновляем переключатель языка
+  const langSelect = document.getElementById('lang-select');
+  if (langSelect) langSelect.value = currentLang;
+
+  // Обновляем динамические тексты
+  if (typeof renderUserList === 'function') renderUserList();
+  if (typeof updateStatus === 'function') updateStatus();
+  
+  // Обновляем title страницы
+  document.title = 'SakhaChat';
+}
+
+function changeLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('sakhachat_lang', lang);
+  applyLanguage();
+}
+
+// ==================== УТИЛИТЫ ====================
 function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 // --- Auth ---
 function showRegister() {
@@ -31,7 +203,7 @@ async function register() {
     const data = await r.json();
     if (!r.ok) return err.textContent = data.error;
     onLogin(data);
-  } catch (e) { err.textContent = 'Ошибка сети'; }
+  } catch (e) { err.textContent = t('errorNetwork'); }
 }
 
 async function login() {
@@ -47,7 +219,7 @@ async function login() {
     const data = await r.json();
     if (!r.ok) return err.textContent = data.error;
     onLogin(data);
-  } catch (e) { err.textContent = 'Ошибка сети'; }
+  } catch (e) { err.textContent = t('errorNetwork'); }
 }
 
 function onLogin(data) {
@@ -76,6 +248,7 @@ function initApp() {
   document.getElementById('me-username').textContent = '@' + me.username;
   document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
 
+  applyLanguage();
   connectSocket();
   loadChats();
 }
@@ -156,16 +329,16 @@ function renderUserList() {
       list.innerHTML = `
         <div style="padding: 30px 20px; text-align: center;">
           <div style="font-size: 40px; margin-bottom: 12px;">🤷‍♂️</div>
-          <div style="font-size: 14px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">Пользователь не найден</div>
-          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">Проверьте правильность написания логина (только латиница, без @).</div>
+          <div style="font-size: 14px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">${t('userNotFound')}</div>
+          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">${t('checkLogin')}</div>
         </div>
       `;
     } else {
       list.innerHTML = `
         <div style="padding: 30px 20px; text-align: center;">
           <div style="font-size: 40px; margin-bottom: 12px;">🔒</div>
-          <div style="font-size: 15px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">Поиск друзей</div>
-          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">Введите <b>точный логин</b> друга в поле поиска выше, чтобы найти его и начать общение.</div>
+          <div style="font-size: 15px; font-weight: 600; color: ${titleColor}; margin-bottom: 8px;">${t('findFriends')}</div>
+          <div style="font-size: 13px; line-height: 1.5; color: ${textColor};">${t('enterLogin')}</div>
         </div>
       `;
     }
@@ -188,10 +361,6 @@ function renderUserList() {
     div.onclick = () => openChat(u);
     list.appendChild(div);
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // --- Chat ---
@@ -221,7 +390,7 @@ async function openChat(user) {
     for (const m of messages) appendMessage(m, false);
     scrollBottom();
   } catch (e) {
-    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #e53935;">Не удалось загрузить сообщения</div>';
+    container.innerHTML = `<div style="text-align: center; padding: 40px; color: #e53935;">${t('errorNetwork')}</div>`;
   }
 
   if (!isMobile()) document.getElementById('message-input').focus();
@@ -236,28 +405,28 @@ function closeChatOnMobile() {
 }
 
 function formatLastSeen(lastSeenStr) {
-  if (!lastSeenStr) return 'был(а) недавно';
+  if (!lastSeenStr) return t('wasRecently');
   
   const d = new Date(lastSeenStr.replace(' ', 'T') + 'Z');
   const now = new Date();
   const diffMs = now - d;
   const diffMins = Math.floor(diffMs / 60000);
 
-  if (diffMins < 1) return 'был(а) только что';
-  if (diffMins < 60) return `был(а) ${diffMins} мин. назад`;
+  if (diffMins < 1) return t('wasJustNow');
+  if (diffMins < 60) return t('wasMinutesAgo').replace('{n}', diffMins);
   
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24 && now.getDate() === d.getDate()) {
-    return `был(а) сегодня в ${d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})}`;
+    return t('wasTodayAt').replace('{time}', d.toLocaleTimeString(currentLang === 'sah' ? 'ru-RU' : 'ru-RU', {hour: '2-digit', minute:'2-digit'}));
   }
   
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth()) {
-    return `был(а) вчера в ${d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})}`;
+    return t('wasYesterdayAt').replace('{time}', d.toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'}));
   }
   
-  return `был(а) ${d.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'})}`;
+  return t('wasDate').replace('{date}', d.toLocaleDateString('ru-RU', {day: 'numeric', month: 'short'}));
 }
 
 function updateStatus() {
@@ -265,7 +434,7 @@ function updateStatus() {
   const el = document.getElementById('chat-status');
 
   if (onlineUsers.has(currentChat.id)) {
-    el.textContent = 'в сети';
+    el.textContent = t('inNetwork');
     el.className = 'status';
   } else {
     el.textContent = formatLastSeen(currentChat.lastSeen);
@@ -282,8 +451,8 @@ function formatDateForDivider(dateStr) {
   const diffTime = today - msgDate;
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 0) return 'Сегодня';
-  if (diffDays === 1) return 'Вчера';
+  if (diffDays === 0) return t('today');
+  if (diffDays === 1) return t('yesterday');
   return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
@@ -356,10 +525,14 @@ async function openSettings() {
     themeToggle.checked = document.body.classList.contains('dark');
   }
 
+  // Синхронизируем выбор языка
+  const langSelect = document.getElementById('lang-select');
+  if (langSelect) langSelect.value = currentLang;
+
   try {
     const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } });
     const data = await r.json();
-    if (!r.ok) { document.getElementById('settings-error').textContent = data.error || 'Ошибка загрузки'; return; }
+    if (!r.ok) { document.getElementById('settings-error').textContent = data.error || t('errorNetwork'); return; }
 
     document.getElementById('settings-avatar').textContent = data.displayName[0].toUpperCase();
     document.getElementById('settings-username-display').textContent = data.displayName;
@@ -372,7 +545,7 @@ async function openSettings() {
       const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
       document.getElementById('settings-created').textContent = 'В SakhaChat с ' + formatted;
     }
-  } catch (e) { document.getElementById('settings-error').textContent = 'Ошибка сети'; }
+  } catch (e) { document.getElementById('settings-error').textContent = t('errorNetwork'); }
 }
 
 function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
@@ -387,11 +560,11 @@ async function saveProfile() {
   const currentPassword = document.getElementById('settings-currentPassword').value;
   const newPassword = document.getElementById('settings-newPassword').value;
 
-  if (!displayName) { err.textContent = 'Имя не может быть пустым'; return; }
+  if (!displayName) { err.textContent = t('nameEmpty'); return; }
 
   const saveBtn = document.querySelector('#settings-modal .btn-primary');
   const originalText = saveBtn.textContent;
-  saveBtn.disabled = true; saveBtn.textContent = 'Сохранение...';
+  saveBtn.disabled = true; saveBtn.textContent = t('saving');
 
   try {
     const body = { displayName, bio };
@@ -414,11 +587,11 @@ async function saveProfile() {
     document.getElementById('settings-currentPassword').value = '';
     document.getElementById('settings-newPassword').value = '';
 
-    ok.textContent = newPassword ? 'Профиль и пароль обновлены!' : 'Профиль обновлён!';
+    ok.textContent = newPassword ? t('profileAndPasswordUpdated') : t('profileUpdated');
     saveBtn.disabled = false; saveBtn.textContent = originalText;
     loadChats();
     setTimeout(() => { if (document.getElementById('settings-modal').style.display !== 'none') closeSettings(); }, 1500);
-  } catch (e) { err.textContent = 'Ошибка сети'; saveBtn.disabled = false; saveBtn.textContent = originalText; }
+  } catch (e) { err.textContent = t('errorNetwork'); saveBtn.disabled = false; saveBtn.textContent = originalText; }
 }
 
 // ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
@@ -444,7 +617,7 @@ async function openViewProfile() {
     const data = await r.json();
     if (!r.ok) throw new Error('Ошибка загрузки');
 
-    bioEl.textContent = data.bio || 'Пользователь ничего не рассказал о себе.';
+    bioEl.textContent = data.bio || t('noBio');
     
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
@@ -461,7 +634,7 @@ async function openViewProfile() {
       dateEl.style.display = 'none';
     }
   } catch (e) {
-    bioEl.textContent = 'Ошибка загрузки';
+    bioEl.textContent = t('errorNetwork');
   }
 }
 

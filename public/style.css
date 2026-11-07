@@ -656,3 +656,8 @@ body.dark #lang-select:focus {
   border-color: #7b8cff;
   background: #2a2b2c;
 }
+
+/* ==================== ИЗБРАННОЕ ==================== */
+.user-item .avatar[style*="f5af19"] {
+  font-size: 20px;
+}

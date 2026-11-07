@@ -93,13 +93,9 @@ function connectSocket() {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
     } else {
-      // Помечаем чат как непрочитанный
       markAsUnread(msg.sender_id);
-      
-      // Обновляем список чатов — новое сообщение будет выделено
       loadChats();
       
-      // Показываем уведомление, если вкладка свернута
       if (document.hidden) {
         const sender = usersCache.find(u => u.id === msg.sender_id);
         const senderName = sender ? sender.displayName : 'Новое сообщение';
@@ -211,16 +207,13 @@ async function openChat(user) {
   document.getElementById('search').value = '';
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
-  // Помечаем чат как прочитанный при открытии
   markAsRead(user.id);
   
   currentChat = user;
 
-  // 1. Мгновенно очищаем контейнер (старый чат исчезает без следа)
   const container = document.getElementById('messages');
   container.innerHTML = '';
 
-  // 2. Показываем чат (заголовок, аватар, поле ввода)
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
@@ -228,21 +221,17 @@ async function openChat(user) {
   updateStatus();
   loadChats();
 
-  // 3. Запускаем таймер: если данные не придут за 200 мс — показываем "Загрузку"
   let loadingTimeout = setTimeout(() => {
     container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">Загрузка...</div>';
   }, 200);
 
-  // 4. Загружаем сообщения
   try {
     const r = await fetch('/api/messages/' + user.id, { headers: { Authorization: 'Bearer ' + token } });
     if (!r.ok) throw new Error('Ошибка загрузки');
     const messages = await r.json();
 
-    // 5. Отменяем таймер (если данные пришли быстро — "Загрузка" не покажется)
     clearTimeout(loadingTimeout);
 
-    // 6. Рисуем сообщения
     container.innerHTML = '';
     for (const m of messages) appendMessage(m, false);
     scrollBottom();
@@ -459,19 +448,27 @@ async function openViewProfile() {
   document.getElementById('view-profile-avatar').textContent = currentChat.displayName[0].toUpperCase();
   document.getElementById('view-profile-name').textContent = currentChat.displayName;
   document.getElementById('view-profile-username').textContent = '@' + currentChat.username;
-  document.getElementById('view-profile-bio').textContent = 'Загрузка...';
   document.getElementById('view-profile-created').textContent = '';
+  
+  const bioEl = document.getElementById('view-profile-bio');
+  bioEl.textContent = '';
   
   const dateEl = document.getElementById('view-profile-chat-date');
   dateEl.style.display = 'none';
   dateEl.textContent = '';
 
+  let loadingTimeout = setTimeout(() => {
+    bioEl.textContent = 'Загрузка...';
+  }, 200);
+
   try {
     const r = await fetch('/api/user/' + currentChat.id, { headers: { Authorization: 'Bearer ' + token } });
     const data = await r.json();
-    if (!r.ok) return;
+    if (!r.ok) throw new Error('Ошибка загрузки');
 
-    document.getElementById('view-profile-bio').textContent = data.bio || 'Пользователь ничего не рассказал о себе.';
+    clearTimeout(loadingTimeout);
+
+    bioEl.textContent = data.bio || 'Пользователь ничего не рассказал о себе.';
     
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
@@ -487,7 +484,10 @@ async function openViewProfile() {
     } else {
       dateEl.style.display = 'none';
     }
-  } catch (e) { document.getElementById('view-profile-bio').textContent = 'Ошибка загрузки'; }
+  } catch (e) {
+    clearTimeout(loadingTimeout);
+    bioEl.textContent = 'Ошибка загрузки';
+  }
 }
 
 function closeViewProfile() { document.getElementById('view-profile-modal').style.display = 'none'; }

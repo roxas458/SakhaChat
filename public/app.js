@@ -216,15 +216,11 @@ async function openChat(user) {
   
   currentChat = user;
 
-  // ===== ГЛАВНОЕ ИСПРАВЛЕНИЕ =====
-  // 1. Сначала ОЧИЩАЕМ контейнер с сообщениями (убираем старый чат)
+  // 1. Мгновенно очищаем контейнер (старый чат исчезает без следа)
   const container = document.getElementById('messages');
   container.innerHTML = '';
-  
-  // 2. Показываем "загрузку" вместо пустоты
-  container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">Загрузка...</div>';
-  
-  // 3. Потом показываем сам чат (заголовок, аватар и т.д.)
+
+  // 2. Показываем чат (заголовок, аватар, поле ввода)
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
@@ -232,17 +228,26 @@ async function openChat(user) {
   updateStatus();
   loadChats();
 
-  // 4. Загружаем сообщения с сервера
+  // 3. Запускаем таймер: если данные не придут за 200 мс — показываем "Загрузку"
+  let loadingTimeout = setTimeout(() => {
+    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">Загрузка...</div>';
+  }, 200);
+
+  // 4. Загружаем сообщения
   try {
     const r = await fetch('/api/messages/' + user.id, { headers: { Authorization: 'Bearer ' + token } });
     if (!r.ok) throw new Error('Ошибка загрузки');
     const messages = await r.json();
 
-    // 5. Очищаем "Загрузку" и рисуем реальные сообщения
+    // 5. Отменяем таймер (если данные пришли быстро — "Загрузка" не покажется)
+    clearTimeout(loadingTimeout);
+
+    // 6. Рисуем сообщения
     container.innerHTML = '';
     for (const m of messages) appendMessage(m, false);
     scrollBottom();
   } catch (e) {
+    clearTimeout(loadingTimeout);
     container.innerHTML = '<div style="text-align: center; padding: 40px; color: #e53935;">Не удалось загрузить сообщения</div>';
   }
 

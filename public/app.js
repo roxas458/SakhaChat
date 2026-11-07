@@ -215,6 +215,16 @@ async function openChat(user) {
   markAsRead(user.id);
   
   currentChat = user;
+
+  // ===== ГЛАВНОЕ ИСПРАВЛЕНИЕ =====
+  // 1. Сначала ОЧИЩАЕМ контейнер с сообщениями (убираем старый чат)
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+  
+  // 2. Показываем "загрузку" вместо пустоты
+  container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">Загрузка...</div>';
+  
+  // 3. Потом показываем сам чат (заголовок, аватар и т.д.)
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
@@ -222,12 +232,20 @@ async function openChat(user) {
   updateStatus();
   loadChats();
 
-  const r = await fetch('/api/messages/' + user.id, { headers: { Authorization: 'Bearer ' + token } });
-  const messages = await r.json();
-  const container = document.getElementById('messages');
-  container.innerHTML = '';
-  for (const m of messages) appendMessage(m, false);
-  scrollBottom();
+  // 4. Загружаем сообщения с сервера
+  try {
+    const r = await fetch('/api/messages/' + user.id, { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Ошибка загрузки');
+    const messages = await r.json();
+
+    // 5. Очищаем "Загрузку" и рисуем реальные сообщения
+    container.innerHTML = '';
+    for (const m of messages) appendMessage(m, false);
+    scrollBottom();
+  } catch (e) {
+    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #e53935;">Не удалось загрузить сообщения</div>';
+  }
+
   if (!isMobile()) document.getElementById('message-input').focus();
 }
 

@@ -134,7 +134,6 @@ async function searchUsers(q) {
   renderUserList();
 }
 
-// Храним непрочитанные сообщения в localStorage
 let unreadChats = JSON.parse(localStorage.getItem('sakhachat_unread') || '{}');
 
 function markAsRead(userId) {
@@ -208,7 +207,6 @@ async function openChat(user) {
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   markAsRead(user.id);
-  
   currentChat = user;
 
   const container = document.getElementById('messages');
@@ -221,22 +219,15 @@ async function openChat(user) {
   updateStatus();
   loadChats();
 
-  let loadingTimeout = setTimeout(() => {
-    container.innerHTML = '<div style="text-align: center; padding: 40px; color: #888;">Загрузка...</div>';
-  }, 200);
-
   try {
     const r = await fetch('/api/messages/' + user.id, { headers: { Authorization: 'Bearer ' + token } });
     if (!r.ok) throw new Error('Ошибка загрузки');
     const messages = await r.json();
 
-    clearTimeout(loadingTimeout);
-
     container.innerHTML = '';
     for (const m of messages) appendMessage(m, false);
     scrollBottom();
   } catch (e) {
-    clearTimeout(loadingTimeout);
     container.innerHTML = '<div style="text-align: center; padding: 40px; color: #e53935;">Не удалось загрузить сообщения</div>';
   }
 
@@ -457,16 +448,10 @@ async function openViewProfile() {
   dateEl.style.display = 'none';
   dateEl.textContent = '';
 
-  let loadingTimeout = setTimeout(() => {
-    bioEl.textContent = 'Загрузка...';
-  }, 200);
-
   try {
     const r = await fetch('/api/user/' + currentChat.id, { headers: { Authorization: 'Bearer ' + token } });
     const data = await r.json();
     if (!r.ok) throw new Error('Ошибка загрузки');
-
-    clearTimeout(loadingTimeout);
 
     bioEl.textContent = data.bio || 'Пользователь ничего не рассказал о себе.';
     
@@ -485,7 +470,6 @@ async function openViewProfile() {
       dateEl.style.display = 'none';
     }
   } catch (e) {
-    clearTimeout(loadingTimeout);
     bioEl.textContent = 'Ошибка загрузки';
   }
 }

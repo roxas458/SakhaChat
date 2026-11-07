@@ -162,8 +162,8 @@ function applyLanguage() {
   const langSelect = document.getElementById('lang-select');
   if (langSelect) langSelect.value = currentLang;
 
-  if (typeof renderUserList === 'function') renderUserList();
-  if (typeof updateStatus === 'function') updateStatus();
+  renderUserList();
+  updateStatus();
   
   document.title = 'SakhaChat';
 }
@@ -399,6 +399,7 @@ async function openChat(user) {
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
+  document.getElementById('chat-avatar').style.background = '';
   document.getElementById('chat-name').textContent = user.displayName;
   updateStatus();
   loadChats();
@@ -456,7 +457,6 @@ async function openSavedChat() {
 function closeChatOnMobile() {
   document.getElementById('sidebar').classList.remove('hidden');
   currentChat = null;
-  document.getElementById('chat-avatar').style.background = ''; // Сброс фона
   document.getElementById('chat').style.display = 'none';
   document.getElementById('empty-chat').style.display = 'flex';
   loadChats();
@@ -689,7 +689,6 @@ async function openViewProfile() {
   bioEl.textContent = '';
   
   const dateEl = document.getElementById('view-profile-chat-date');
-  dateEl.style.display = 'none';
   dateEl.textContent = '';
 
   try {
@@ -709,9 +708,6 @@ async function openViewProfile() {
       const d = new Date(data.firstMessageAt.replace(' ', 'T') + 'Z');
       const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
       dateEl.textContent = '💬 Общаетесь с ' + formatted;
-      dateEl.style.display = 'block';
-    } else {
-      dateEl.style.display = 'none';
     }
   } catch (e) {
     bioEl.textContent = t('errorNetwork');
@@ -742,7 +738,7 @@ function applyTheme(isDark) {
   const toggle = document.getElementById('theme-toggle');
   if (toggle) toggle.checked = isDark;
   
-  if (typeof renderUserList === 'function') renderUserList();
+  renderUserList();
 }
 
 function toggleTheme(isDark) {

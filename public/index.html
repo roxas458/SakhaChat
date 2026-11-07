@@ -71,7 +71,7 @@
         <div class="messages" id="messages"></div>
         <div class="composer">
           <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
-          <button onclick="sendMessage()">➤</button>
+          <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
       </div>
     </main>
@@ -130,7 +130,7 @@
         <!-- Язык -->
         <label class="field-label" data-i18n="language">Язык</label>
         <div class="lang-switch-row">
-          <select id="lang-select" onchange="changeLanguage(this.value)" style="padding: 10px 14px; border-radius: 10px; border: 1px solid #e4e6eb; font-size: 14px; font-family: inherit; background: #f7f8fa; flex: 1; cursor: pointer;">
+          <select id="lang-select" onchange="changeLanguage(this.value)">
             <option value="ru">Русский</option>
             <option value="sah">Саха тыла</option>
           </select>
@@ -168,7 +168,7 @@
         <div class="bio-box" id="view-profile-bio" data-i18n="noBio">Пользователь ничего не рассказал о себе.</div>
         
         <!-- Блок с датой знакомства -->
-        <div id="view-profile-chat-date" style="display:none; margin-top: 12px; font-size: 13px; color: #888; text-align: center;"></div>
+        <div id="view-profile-chat-date"></div>
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeViewProfile()" data-i18n="close">Закрыть</button>

@@ -599,7 +599,6 @@ body.dark .theme-slider { background: #3a3b3c; }
 body.dark .btn-secondary { background: #3a3b3c; color: #e4e6eb; border-color: #3e4042; }
 body.dark .btn-secondary:hover { background: #4a4b4c; }
 body.dark .modal-divider { border-top-color: #3e4042; }
-body.dark .logout:hover, body.dark .settings-btn:hover { background: #4a4b4c; }
 body.dark .empty-chat { color: #3a3b3c; }
 
 /* ==================== БИО И ПРОСМОТР ПРОФИЛЯ ==================== */
@@ -612,6 +611,7 @@ body.dark .bio-box { background: #3a3b3c; color: #e4e6eb; border-color: #3e4042;
 
 /* ==================== ДАТА НАЧАЛА ОБЩЕНИЯ ==================== */
 #view-profile-chat-date { background: #eef0ff; padding: 8px 14px; border-radius: 20px; display: block; margin: 16px auto 0; text-align: center; width: fit-content; font-weight: 600; color: #667eea; font-size: 12px; }
+#view-profile-chat-date:empty { display: none; }
 body.dark #view-profile-chat-date { background: #2d2f4a; color: #8a92ff; }
 
 /* ==================== РАЗДЕЛИТЕЛИ ДАТ В ЧАТЕ ==================== */

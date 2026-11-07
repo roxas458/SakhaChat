@@ -95,13 +95,6 @@ function connectSocket() {
     } else {
       markAsUnread(msg.sender_id);
       loadChats();
-      
-      if (document.hidden) {
-        const sender = usersCache.find(u => u.id === msg.sender_id);
-        const senderName = sender ? sender.displayName : 'Новое сообщение';
-        showNotification(senderName, msg.text);
-        playNotificationSound();
-      }
     }
   });
 
@@ -363,8 +356,6 @@ async function openSettings() {
     themeToggle.checked = document.body.classList.contains('dark');
   }
 
-  updateNotifButton();
-
   try {
     const r = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } });
     const data = await r.json();
@@ -512,93 +503,6 @@ function toggleTheme(isDark) {
   else if (savedTheme === 'light') applyTheme(false);
   else applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
 })();
-
-// ==================== УВЕДОМЛЕНИЯ ====================
-function requestNotifications() {
-  if (!('Notification' in window)) {
-    alert('Ваш браузер не поддерживает уведомления');
-    return;
-  }
-
-  Notification.requestPermission().then((permission) => {
-    updateNotifButton();
-    if (permission === 'granted') {
-      showNotification('SakhaChat', 'Уведомления включены!');
-    }
-  });
-}
-
-function updateNotifButton() {
-  const btn = document.getElementById('notif-btn');
-  const text = document.getElementById('notif-text');
-  if (!btn) return;
-
-  if (!('Notification' in window)) {
-    btn.textContent = 'Не поддерживается';
-    btn.disabled = true;
-    btn.style.background = '#888';
-    text.textContent = 'Браузер не поддерживает уведомления';
-    return;
-  }
-
-  if (Notification.permission === 'granted') {
-    btn.textContent = 'Включено';
-    btn.style.background = '#4caf50';
-    btn.disabled = true;
-    text.textContent = 'Уведомления включены';
-  } else if (Notification.permission === 'denied') {
-    btn.textContent = 'Заблокировано';
-    btn.style.background = '#e53935';
-    btn.disabled = true;
-    text.textContent = 'Разрешите уведомления в настройках браузера';
-  } else {
-    btn.textContent = 'Включить';
-    btn.style.background = '#667eea';
-    btn.disabled = false;
-    text.textContent = 'Включить звук и всплывающие окна';
-  }
-}
-
-function showNotification(title, body) {
-  if (Notification.permission !== 'granted') return;
-  if (!document.hidden) return;
-
-  try {
-    const notif = new Notification(title, {
-      body: body.length > 100 ? body.slice(0, 100) + '...' : body,
-      tag: 'sakhachat-msg',
-      silent: true
-    });
-    notif.onclick = () => {
-      window.focus();
-      notif.close();
-    };
-  } catch (e) {
-    console.log('Не удалось показать уведомление:', e);
-  }
-}
-
-function playNotificationSound() {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.frequency.value = 800;
-    oscillator.type = 'sine';
-
-    gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-
-    oscillator.start(audioCtx.currentTime);
-    oscillator.stop(audioCtx.currentTime + 0.3);
-  } catch (e) {
-    console.log('Звук недоступен:', e);
-  }
-}
 
 // --- Boot ---
 if (token && me) initApp();

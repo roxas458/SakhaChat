@@ -48,4 +48,9 @@ try {
   db.exec('ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0;');
 } catch (e) { /* Колонка уже существует */ }
 
+// Добавляем reply_to_id (ID сообщения, на которое отвечают)
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN reply_to_id INTEGER;');
+} catch (e) { /* Колонка уже существует */ }
+
 module.exports = db;

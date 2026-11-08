@@ -80,8 +80,23 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <input type="text" id="message-input" placeholder="Сообщение..." oninput="handleInputTyping()" onkeydown="if(event.key==='Enter')sendMessage()" onblur="stopTyping()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
-          <button id="send-btn" onclick="sendMessage()">➤</button>
+          <!-- Карточка цитаты (скрыта по умолчанию) -->
+          <div id="reply-preview" class="reply-preview" style="display:none">
+            <div class="reply-preview-bar"></div>
+            <div class="reply-preview-content">
+              <div class="reply-preview-emoji" id="reply-preview-emoji">💬</div>
+              <div class="reply-preview-text">
+                <div class="reply-preview-name" id="reply-preview-name"></div>
+                <div class="reply-preview-snippet" id="reply-preview-snippet"></div>
+              </div>
+            </div>
+            <button type="button" class="reply-preview-close" onclick="cancelReply()" title="Отменить">✕</button>
+          </div>
+
+          <div class="composer-row">
+            <input type="text" id="message-input" placeholder="Сообщение..." oninput="handleInputTyping()" onkeydown="if(event.key==='Enter')sendMessage()" onblur="stopTyping()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
+            <button id="send-btn" onclick="sendMessage()">➤</button>
+          </div>
         </div>
       </div>
     </main>
@@ -184,6 +199,18 @@
         <button class="btn-secondary" onclick="closeViewProfile()" data-i18n="close">Закрыть</button>
       </div>
     </div>
+  </div>
+
+  <!-- Контекстное меню (долгий тап / правый клик) -->
+  <div id="context-menu" class="context-menu" style="display:none">
+    <button type="button" class="context-menu-item" onclick="contextReply()">
+      <span class="context-menu-icon">↩️</span>
+      <span data-i18n="contextReply">Ответить</span>
+    </button>
+    <button type="button" class="context-menu-item" onclick="contextCopy()">
+      <span class="context-menu-icon">📋</span>
+      <span data-i18n="contextCopy">Копировать</span>
+    </button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>

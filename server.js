@@ -175,12 +175,12 @@ app.get('/api/saved-messages', auth, (req, res) => {
 
 // Отправить сообщение в Избранное (себе)
 app.post('/api/messages', auth, (req, res) => {
-  const { text } = req.body;
+  const { text, replyToId } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
 
   const result = db.prepare(
-    'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
-  ).run(req.userId, req.userId, text.trim());
+    'INSERT INTO messages (sender_id, receiver_id, text, reply_to_id) VALUES (?, ?, ?, ?)'
+  ).run(req.userId, req.userId, text.trim(), replyToId || null);
 
   const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
   res.json(msg);
@@ -232,9 +232,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('send_message', ({ to, text }, callback) => {
+  socket.on('send_message', ({ to, text, replyToId }, callback) => {
     if (!to || !text || !text.trim()) return;
-    const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)').run(socket.userId, to, text.trim());
+    const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text, reply_to_id) VALUES (?, ?, ?, ?)').run(socket.userId, to, text.trim(), replyToId || null);
     const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
     const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) io.to(receiverSocket).emit('new_message', msg);

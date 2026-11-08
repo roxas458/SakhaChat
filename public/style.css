@@ -242,14 +242,25 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .message .time { display: block; font-size: 10px; opacity: 0.7; margin-top: 6px; font-weight: 500; }
+
+/* ⚠️ ИЗМЕНЕНО: .composer теперь вертикальный (карточка + строка) */
 .composer {
   padding: 16px 20px;
   background: white;
   border-top: 1px solid #e4e6eb;
   display: flex;
+  flex-direction: column;   /* ← было row */
   gap: 10px;
   flex-shrink: 0;
 }
+
+/* ⚠️ НОВОЕ: строка ввода внутри composer */
+.composer-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
 .composer input {
   flex: 1;
   padding: 14px 18px;
@@ -786,4 +797,203 @@ body.dark .status.typing {
 @keyframes typingPulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+/* ==================== ОТВЕТ НА СООБЩЕНИЕ ==================== */
+
+/* Цвета типов (по эмодзи) */
+:root {
+  --reply-question: #ff9800;   /* ❓ */
+  --reply-laugh: #ffc107;      /* 😂 */
+  --reply-love: #e91e63;       /* ❤️ */
+  --reply-agree: #4caf50;      /* 👍 */
+  --reply-long: #607d8b;       /* 📝 */
+  --reply-default: #667eea;    /* 💬 */
+}
+
+/* Контекстное меню (долгий тап / правый клик) */
+.context-menu {
+  position: fixed;
+  background: white;
+  border: 1px solid #e4e6eb;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  padding: 6px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 160px;
+  animation: contextFadeIn 0.12s ease;
+}
+@keyframes contextFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+body.dark .context-menu {
+  background: #242526;
+  border-color: #3e4042;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  color: #1a1a1a;
+  text-align: left;
+  transition: background 0.15s;
+  width: 100%;
+}
+.context-menu-item:hover { background: #f0f2f5; }
+body.dark .context-menu-item { color: #e4e6eb; }
+body.dark .context-menu-item:hover { background: #3a3b3c; }
+
+.context-menu-icon { font-size: 16px; line-height: 1; }
+
+/* Карточка цитаты над composer'ом */
+.reply-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #f9fafc;
+  border: 1px solid #e4e6eb;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+body.dark .reply-preview {
+  background: #2a2b2c;
+  border-color: #3e4042;
+}
+
+.reply-preview-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--reply-default);
+}
+
+.reply-preview-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 4px;
+}
+
+.reply-preview-emoji {
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.reply-preview-text { min-width: 0; flex: 1; }
+
+.reply-preview-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #667eea;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.dark .reply-preview-name { color: #8a92ff; }
+
+.reply-preview-snippet {
+  font-size: 13px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body.dark .reply-preview-snippet { color: #b0b3b8; }
+
+.reply-preview-close {
+  background: transparent;
+  border: none;
+  color: #888;
+  font-size: 18px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  font-family: inherit;
+  padding: 0;
+}
+.reply-preview-close:hover { background: #ffebee; color: #e53935; }
+body.dark .reply-preview-close { color: #b0b3b8; }
+body.dark .reply-preview-close:hover { background: #3a1a1a; color: #ff6b6b; }
+
+/* Цитата внутри сообщения (ответ) */
+.message .reply-quote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: -4px -8px 8px;
+  border-radius: 10px;
+  border-left: 3px solid var(--reply-default);
+  background: rgba(0, 0, 0, 0.05);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  max-width: 100%;
+}
+.message .reply-quote:hover { background: rgba(0, 0, 0, 0.08); }
+body.dark .message .reply-quote { background: rgba(255, 255, 255, 0.08); }
+body.dark .message .reply-quote:hover { background: rgba(255, 255, 255, 0.12); }
+
+.message.mine .reply-quote {
+  background: rgba(255, 255, 255, 0.15);
+  border-left-color: rgba(255, 255, 255, 0.6);
+}
+.message.mine .reply-quote:hover { background: rgba(255, 255, 255, 0.22); }
+
+.reply-quote-emoji { font-size: 14px; line-height: 1; flex-shrink: 0; }
+
+.reply-quote-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
+  min-width: 0;
+}
+.message.mine .reply-quote-text { opacity: 0.95; }
+
+/* Пульсация при клике на цитату */
+.message.reply-target {
+  animation: replyPulse 0.6s ease 3;
+}
+@keyframes replyPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+  70%  { box-shadow: 0 0 0 12px rgba(255, 152, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+}
+
+/* Мобильная адаптация */
+@media (max-width: 700px) {
+  .context-menu { min-width: 180px; }
+  .context-menu-item { padding: 12px 14px; font-size: 15px; }
+  .reply-preview { padding: 6px 10px; }
+  .reply-preview-emoji { font-size: 20px; }
+  .reply-preview-snippet { font-size: 12px; }
+  .message .reply-quote { font-size: 11px; padding: 5px 8px; }
 }

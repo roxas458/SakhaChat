@@ -16,6 +16,11 @@ let typingSent = false;
 let peerTypingTimeout = null;
 let peerTypingUserId = null;
 
+// ==================== ОТВЕТ НА СООБЩЕНИЕ ====================
+let replyToMessage = null;      // { id, text, senderName }
+let contextMenuMessage = null;  // сообщение, на котором открыто меню
+let longPressTimer = null;
+
 // ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
 const i18n = {
   ru: {
@@ -82,7 +87,12 @@ const i18n = {
     saved: 'Избранное',
     savedHint: 'Заметки для себя',
     savedOnly: 'Только для тебя',
-    savedEmpty: 'Не удалось загрузить'
+    savedEmpty: 'Не удалось загрузить',
+    // Ответ на сообщение
+    contextReply: 'Ответить',
+    contextCopy: 'Копировать',
+    replyTo: 'Ответ на',
+    copied: 'Скопировано!'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -148,7 +158,12 @@ const i18n = {
     saved: 'Талыллыбыт',
     savedHint: 'Бэйэҕэр суруктар',
     savedOnly: 'Эрэ эйиэхэ эрэ',
-    savedEmpty: 'Сабалларбата'
+    savedEmpty: 'Сабалларбата',
+    // Ответ на сообщение
+    contextReply: 'Хоруйдаа',
+    contextCopy: 'Хардаа',
+    replyTo: 'Хоруй',
+    copied: 'Хардаллынна!'
   }
 };
 
@@ -192,6 +207,137 @@ function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ==================== ОТВЕТ НА СООБЩЕНИЕ ====================
+function detectReplyEmoji(text) {
+  if (!text) return { emoji: '💬', color: 'var(--reply-default)' };
+  const t = text.trim().toLowerCase();
+
+  if (/[?？]\s*$/.test(text)) return { emoji: '❓', color: 'var(--reply-question)' };
+  if (/\)\)|ахах|😂|🤣|ха-ха|хаха/.test(t)) return { emoji: '😂', color: 'var(--reply-laugh)' };
+  if (/любл|❤️|😍|🥰|💕|💖/.test(t)) return { emoji: '❤️', color: 'var(--reply-love)' };
+  if (/^(ок|ok|да|yes|согласен|👍|👌)\b/.test(t)) return { emoji: '👍', color: 'var(--reply-agree)' };
+  if (text.length > 100) return { emoji: '📝', color: 'var(--reply-long)' };
+  return { emoji: '💬', color: 'var(--reply-default)' };
+}
+
+function showContextMenu(msgEl, x, y) {
+  const menu = document.getElementById('context-menu');
+  if (!menu) return;
+  contextMenuMessage = msgEl;
+
+  // Позиционируем
+  menu.style.display = 'flex';
+  menu.style.left = '0px';
+  menu.style.top = '0px';
+
+  const rect = menu.getBoundingClientRect();
+  const w = rect.width || 160;
+  const h = rect.height || 90;
+
+  let left = x;
+  let top = y;
+
+  if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+  if (top + h > window.innerHeight - 8) top = y - h;
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
+
+function hideContextMenu() {
+  const menu = document.getElementById('context-menu');
+  if (menu) menu.style.display = 'none';
+  contextMenuMessage = null;
+}
+
+function contextReply() {
+  if (!contextMenuMessage) return;
+  const msgEl = contextMenuMessage;
+  const id = parseInt(msgEl.dataset.messageId, 10);
+  const text = msgEl.dataset.originalText || '';
+  const isMine = msgEl.classList.contains('mine');
+
+  let senderName = '';
+  if (currentChat && currentChat.id === 'saved') {
+    senderName = isMine ? me.displayName : '';
+  } else {
+    senderName = isMine ? me.displayName : (currentChat ? currentChat.displayName : '');
+  }
+
+  setReplyTo({ id, text, senderName });
+  hideContextMenu();
+}
+
+function contextCopy() {
+  if (!contextMenuMessage) return;
+  const text = contextMenuMessage.dataset.originalText || '';
+  navigator.clipboard.writeText(text).then(() => {
+    hideContextMenu();
+    showToast(t('copied'));
+  }).catch(() => {
+    hideContextMenu();
+  });
+}
+
+function setReplyTo(reply) {
+  replyToMessage = reply;
+  const preview = document.getElementById('reply-preview');
+  if (!preview) return;
+
+  const { emoji, color } = detectReplyEmoji(reply.text);
+  const bar = preview.querySelector('.reply-preview-bar');
+  const emojiEl = document.getElementById('reply-preview-emoji');
+  const nameEl = document.getElementById('reply-preview-name');
+  const snippetEl = document.getElementById('reply-preview-snippet');
+
+  if (bar) bar.style.background = color;
+  if (emojiEl) emojiEl.textContent = emoji;
+  if (nameEl) nameEl.textContent = reply.senderName || t('replyTo');
+  if (snippetEl) {
+    const oneLine = (reply.text || '').replace(/\s+/g, ' ').trim();
+    snippetEl.textContent = oneLine.length > 60 ? oneLine.slice(0, 60) + '…' : oneLine;
+  }
+  preview.style.display = 'flex';
+
+  const input = document.getElementById('message-input');
+  if (input && !isMobile()) input.focus();
+}
+
+function cancelReply() {
+  replyToMessage = null;
+  const preview = document.getElementById('reply-preview');
+  if (preview) preview.style.display = 'none';
+}
+
+function scrollToMessage(messageId) {
+  const el = document.querySelector(`#messages .message[data-message-id="${messageId}"]`);
+  if (!el) {
+    showToast(t('userNotFound'));
+    return;
+  }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('reply-target');
+  void el.offsetWidth;
+  el.classList.add('reply-target');
+  setTimeout(() => el.classList.remove('reply-target'), 2000);
+}
+
+function showToast(text) {
+  let toast = document.getElementById('sakha-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'sakha-toast';
+    toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:10px 20px;border-radius:20px;font-size:14px;z-index:3000;pointer-events:none;transition:opacity 0.3s;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = text;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 1500);
 }
 
 // ==================== «ПЕЧАТАЕТ...» ====================
@@ -618,6 +764,7 @@ async function openChat(user) {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
   stopTyping();
+  cancelReply();
   peerTypingUserId = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
@@ -656,6 +803,7 @@ async function openSavedChat() {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
   stopTyping();
+  cancelReply();
   peerTypingUserId = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
@@ -693,6 +841,7 @@ async function openSavedChat() {
 function closeChatOnMobile() {
   document.getElementById('sidebar').classList.remove('hidden');
   currentChat = null;
+  cancelReply();
   document.getElementById('chat').style.display = 'none';
   document.getElementById('empty-chat').style.display = 'flex';
   loadChats();
@@ -788,12 +937,34 @@ function appendMessage(msg, animate) {
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   div.dataset.createdAt = msg.created_at;
   div.dataset.originalText = msg.text;
+  if (msg.id !== undefined && msg.id !== null) {
+    div.dataset.messageId = String(msg.id);
+  }
   
   if (!animate) div.style.animation = 'none';
   
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+  // Цитата (если это ответ)
+  let quoteHtml = '';
+  if (msg.reply_to_id) {
+    const quotedEl = document.querySelector(`#messages .message[data-message-id="${msg.reply_to_id}"]`);
+    let quotedText = '';
+    if (quotedEl) {
+      quotedText = quotedEl.dataset.originalText || '';
+    } else {
+      quotedText = t('replyTo');
+    }
+    const { emoji, color } = detectReplyEmoji(quotedText);
+    const oneLine = (quotedText || '').replace(/\s+/g, ' ').trim();
+    const snippet = oneLine.length > 50 ? oneLine.slice(0, 50) + '…' : oneLine;
+    quoteHtml = `<div class="reply-quote" onclick="scrollToMessage(${msg.reply_to_id})" style="border-left-color: ${color}">
+      <span class="reply-quote-emoji">${emoji}</span>
+      <span class="reply-quote-text">${escapeHtml(snippet)}</span>
+    </div>`;
+  }
   
-  div.innerHTML = escapeHtml(msg.text) + `<span class="time">${time}</span>`;
+  div.innerHTML = quoteHtml + escapeHtml(msg.text) + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
 }
@@ -810,16 +981,19 @@ function sendMessage() {
 
   stopTyping();
 
+  const replyId = replyToMessage ? replyToMessage.id : null;
+
   if (currentChat.id === 'saved') {
     fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, replyToId: replyId })
     })
     .then(r => r.json())
     .then(msg => {
       appendMessage(msg, true);
       input.value = '';
+      cancelReply();
     })
     .catch(e => alert(t('errorNetwork')));
 
@@ -827,9 +1001,10 @@ function sendMessage() {
     return;
   }
   
-  socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
+  socket.emit('send_message', { to: currentChat.id, text, replyToId: replyId }, (msg) => {
     appendMessage(msg, true);
     loadChats();
+    cancelReply();
   });
   input.value = '';
   if (!isMobile()) input.focus();
@@ -965,6 +1140,12 @@ document.addEventListener('click', (e) => {
   if (modal && modal.style.display !== 'none' && e.target === modal) closeSettings();
   const viewModal = document.getElementById('view-profile-modal');
   if (viewModal && viewModal.style.display !== 'none' && e.target === viewModal) closeViewProfile();
+
+  // Закрытие контекстного меню по клику вне
+  const ctxMenu = document.getElementById('context-menu');
+  if (ctxMenu && ctxMenu.style.display !== 'none' && !ctxMenu.contains(e.target)) {
+    hideContextMenu();
+  }
 });
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('settings-modal');
@@ -972,8 +1153,43 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (modal && modal.style.display !== 'none') closeSettings();
     if (viewModal && viewModal.style.display !== 'none') closeViewProfile();
+    const ctxMenu = document.getElementById('context-menu');
+    if (ctxMenu && ctxMenu.style.display !== 'none') hideContextMenu();
+    if (replyToMessage) cancelReply();
   }
 });
+
+// ==================== ДОЛГИЙ ТАП / ПРАВЫЙ КЛИК ====================
+document.addEventListener('mousedown', (e) => {
+  const msg = e.target.closest('#messages .message');
+  if (!msg) return;
+  if (e.button === 2) {
+    e.preventDefault();
+    showContextMenu(msg, e.clientX, e.clientY);
+  }
+});
+document.addEventListener('contextmenu', (e) => {
+  const msg = e.target.closest('#messages .message');
+  if (msg) {
+    e.preventDefault();
+    showContextMenu(msg, e.clientX, e.clientY);
+  }
+});
+document.addEventListener('touchstart', (e) => {
+  const msg = e.target.closest('#messages .message');
+  if (!msg) return;
+  const touch = e.touches[0];
+  longPressTimer = setTimeout(() => {
+    showContextMenu(msg, touch.clientX, touch.clientY);
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 500);
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+});
+document.addEventListener('touchmove', () => {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+}, { passive: true });
 
 // ==================== ТЁМНАЯ ТЕМА ====================
 function applyTheme(isDark) {

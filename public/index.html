@@ -63,9 +63,19 @@
         <div class="chat-header">
           <button class="back-btn" onclick="closeChatOnMobile()" title="Назад" data-i18n-title="backTitle">←</button>
           <div class="avatar" id="chat-avatar" onclick="openViewProfile()" title="Открыть профиль" style="cursor:pointer"></div>
-          <div>
+          <div class="chat-header-info">
             <div class="name" id="chat-name"></div>
             <div class="status" id="chat-status"></div>
+          </div>
+          <button id="search-toggle-btn" type="button" title="Поиск" onclick="toggleMessageSearch()">🔍</button>
+
+          <!-- Строка поиска (скрыта по умолчанию) -->
+          <div id="message-search-bar" class="message-search-bar" style="display:none">
+            <input type="text" id="message-search-input" placeholder="Поиск по сообщениям..." oninput="filterMessages(this.value)" onkeydown="handleSearchKeydown(event)">
+            <span id="search-counter" class="search-counter"></span>
+            <button type="button" class="search-nav-btn" id="search-prev" onclick="navigateSearch(-1)" title="Предыдущее">↑</button>
+            <button type="button" class="search-nav-btn" id="search-next" onclick="navigateSearch(1)" title="Следующее">↓</button>
+            <button type="button" class="search-close-btn" onclick="closeMessageSearch()" title="Закрыть">✕</button>
           </div>
         </div>
         <div class="messages" id="messages"></div>

@@ -661,3 +661,114 @@ body.dark #lang-select:focus {
 .user-item .avatar[style*="f5af19"] {
   font-size: 20px;
 }
+
+/* ==================== ПОИСК ПО СООБЩЕНИЯМ ==================== */
+.chat-header-info { min-width: 0; flex: 1; }
+
+#search-toggle-btn {
+  margin-left: auto;
+  background: #f0f2f5;
+  border: 1px solid #e4e6eb;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  line-height: 1;
+  font-family: inherit;
+}
+#search-toggle-btn:hover { color: #667eea; border-color: #667eea; background: #eef0ff; }
+body.dark #search-toggle-btn { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
+body.dark #search-toggle-btn:hover { color: #8a92ff; border-color: #8a92ff; background: #2d2f4a; }
+
+.message-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.message-search-bar input {
+  flex: 1;
+  padding: 8px 14px;
+  border: 1px solid #e4e6eb;
+  border-radius: 20px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #f0f2f5;
+  min-width: 0;
+  transition: all 0.2s;
+}
+.message-search-bar input:focus { outline: none; border-color: #667eea; background: white; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+body.dark .message-search-bar input { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
+body.dark .message-search-bar input:focus { border-color: #7b8cff; background: #2a2b2c; }
+
+.search-counter {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  min-width: 24px;
+  text-align: center;
+  font-weight: 600;
+}
+body.dark .search-counter { color: #b0b3b8; }
+
+.search-nav-btn,
+.search-close-btn {
+  background: #f0f2f5;
+  border: 1px solid #e4e6eb;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  color: #555;
+  transition: all 0.15s;
+  padding: 0;
+}
+.search-nav-btn:hover,
+.search-close-btn:hover { background: #eef0ff; color: #667eea; border-color: #667eea; }
+.search-nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+body.dark .search-nav-btn,
+body.dark .search-close-btn { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
+body.dark .search-nav-btn:hover,
+body.dark .search-close-btn:hover { background: #2d2f4a; color: #8a92ff; border-color: #8a92ff; }
+
+/* Подсветка совпадений */
+.message mark {
+  background: #ffe066;
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+body.dark .message mark {
+  background: #b8860b;
+  color: #fff;
+}
+
+/* Активное совпадение — ярче */
+.message mark.current {
+  background: #ff9800;
+  color: white;
+}
+body.dark .message mark.current {
+  background: #ff9800;
+  color: white;
+}
+
+/* Скрытые сообщения (не совпали) */
+.message.search-hidden { display: none; }
+
+/* Мобильная адаптация */
+@media (max-width: 700px) {
+  #search-toggle-btn { font-size: 20px; padding: 8px 12px; }
+  .message-search-bar input { font-size: 16px; padding: 8px 12px; }
+  .search-nav-btn, .search-close-btn { width: 34px; height: 34px; }
+}

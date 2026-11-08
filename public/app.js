@@ -5,6 +5,11 @@ let currentChat = null;
 let onlineUsers = new Set();
 let usersCache = [];
 
+// ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
+let searchMatches = [];
+let currentMatchIndex = -1;
+let searchOpen = false;
+
 // ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
 const i18n = {
   ru: {
@@ -179,6 +184,158 @@ function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
+function toggleMessageSearch() {
+  if (searchOpen) {
+    closeMessageSearch();
+  } else {
+    openMessageSearch();
+  }
+}
+
+function openMessageSearch() {
+  searchOpen = true;
+  const bar = document.getElementById('message-search-bar');
+  const info = document.querySelector('.chat-header-info');
+  const toggleBtn = document.getElementById('search-toggle-btn');
+  if (bar) bar.style.display = 'flex';
+  if (info) info.style.display = 'none';
+  if (toggleBtn) toggleBtn.style.display = 'none';
+  const input = document.getElementById('message-search-input');
+  if (input) { input.value = ''; input.focus(); }
+}
+
+function closeMessageSearch() {
+  searchOpen = false;
+  const bar = document.getElementById('message-search-bar');
+  const info = document.querySelector('.chat-header-info');
+  const toggleBtn = document.getElementById('search-toggle-btn');
+  if (bar) bar.style.display = 'none';
+  if (info) info.style.display = '';
+  if (toggleBtn) toggleBtn.style.display = '';
+
+  // Убираем подсветку
+  document.querySelectorAll('.message mark').forEach(m => {
+    const parent = m.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(m.textContent), m);
+      parent.normalize();
+    }
+  });
+  document.querySelectorAll('.message.search-hidden').forEach(el => el.classList.remove('search-hidden'));
+
+  searchMatches = [];
+  currentMatchIndex = -1;
+  updateSearchCounter();
+  const input = document.getElementById('message-search-input');
+  if (input) input.value = '';
+}
+
+function filterMessages(query) {
+  const q = (query || '').trim().toLowerCase();
+  const messages = document.querySelectorAll('#messages .message');
+
+  // Сбрасываем старую подсветку
+  messages.forEach(msg => {
+    const text = msg.dataset.originalText || msg.textContent;
+    if (!msg.dataset.originalText) msg.dataset.originalText = text;
+    const timeEl = msg.querySelector('.time');
+    const timeText = timeEl ? timeEl.outerHTML : '';
+    msg.innerHTML = escapeHtml(msg.dataset.originalText) + timeText;
+    msg.classList.remove('search-hidden');
+  });
+
+  searchMatches = [];
+  currentMatchIndex = -1;
+
+  if (!q) {
+    updateSearchCounter();
+    return;
+  }
+
+  messages.forEach(msg => {
+    const text = (msg.dataset.originalText || '').toLowerCase();
+    if (text.includes(q)) {
+      highlightInMessage(msg, msg.dataset.originalText, q);
+      msg.classList.remove('search-hidden');
+      searchMatches.push(msg);
+    } else {
+      msg.classList.add('search-hidden');
+    }
+  });
+
+  if (searchMatches.length > 0) {
+    currentMatchIndex = 0;
+    setCurrentMatch(0);
+  }
+  updateSearchCounter();
+}
+
+function highlightInMessage(msgEl, originalText, query) {
+  const timeEl = msgEl.querySelector('.time');
+  const timeText = timeEl ? timeEl.outerHTML : '';
+  const lowerText = originalText.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  let result = '';
+  let lastIndex = 0;
+  let idx = lowerText.indexOf(lowerQuery);
+
+  while (idx !== -1) {
+    result += escapeHtml(originalText.slice(lastIndex, idx));
+    result += `<mark>${escapeHtml(originalText.slice(idx, idx + query.length))}</mark>`;
+    lastIndex = idx + query.length;
+    idx = lowerText.indexOf(lowerQuery, lastIndex);
+  }
+  result += escapeHtml(originalText.slice(lastIndex));
+
+  msgEl.innerHTML = result + timeText;
+}
+
+function setCurrentMatch(index) {
+  document.querySelectorAll('#messages mark.current').forEach(m => m.classList.remove('current'));
+  if (searchMatches.length === 0) return;
+
+  const msg = searchMatches[index];
+  const firstMark = msg.querySelector('mark');
+  if (firstMark) {
+    firstMark.classList.add('current');
+    msg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function navigateSearch(direction) {
+  if (searchMatches.length === 0) return;
+  currentMatchIndex = (currentMatchIndex + direction + searchMatches.length) % searchMatches.length;
+  setCurrentMatch(currentMatchIndex);
+  updateSearchCounter();
+}
+
+function updateSearchCounter() {
+  const counter = document.getElementById('search-counter');
+  const prevBtn = document.getElementById('search-prev');
+  const nextBtn = document.getElementById('search-next');
+  if (!counter) return;
+
+  if (searchMatches.length === 0) {
+    counter.textContent = '';
+    if (prevBtn) prevBtn.disabled = true;
+    if (nextBtn) nextBtn.disabled = true;
+  } else {
+    counter.textContent = `${currentMatchIndex + 1}/${searchMatches.length}`;
+    if (prevBtn) prevBtn.disabled = false;
+    if (nextBtn) nextBtn.disabled = false;
+  }
+}
+
+function handleSearchKeydown(e) {
+  if (e.key === 'Escape') {
+    closeMessageSearch();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    navigateSearch(e.shiftKey ? -1 : 1);
+  }
 }
 
 // --- Auth ---
@@ -388,6 +545,7 @@ function renderUserList() {
 // --- Chat ---
 async function openChat(user) {
   document.getElementById('search').value = '';
+  if (searchOpen) closeMessageSearch();
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   markAsRead(user.id);
@@ -422,6 +580,7 @@ async function openChat(user) {
 // --- Избранное ---
 async function openSavedChat() {
   document.getElementById('search').value = '';
+  if (searchOpen) closeMessageSearch();
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   currentChat = { id: 'saved', displayName: t('saved'), username: 'saved' };
@@ -545,6 +704,7 @@ function appendMessage(msg, animate) {
   const div = document.createElement('div');
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   div.dataset.createdAt = msg.created_at;
+  div.dataset.originalText = msg.text;
   
   if (!animate) div.style.animation = 'none';
   

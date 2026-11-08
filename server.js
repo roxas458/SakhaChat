@@ -161,30 +161,6 @@ app.get('/api/messages/:userId', auth, (req, res) => {
   res.json(toNumArr(msgs));
 });
 
-// ============ ПРОЧИТАНО ============
-// Отметить все сообщения от указанного пользователя как прочитанные
-app.post('/api/messages/read', auth, (req, res) => {
-  const { fromUserId } = req.body;
-  if (!fromUserId) return res.status(400).json({ error: 'fromUserId required' });
-
-  const fromId = parseInt(fromUserId, 10);
-  if (!fromId) return res.status(400).json({ error: 'Invalid fromUserId' });
-
-  // Обновляем: сообщения от fromId мне, которые ещё не прочитаны
-  db.prepare(`
-    UPDATE messages SET is_read = 1
-    WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
-  `).run(fromId, req.userId);
-
-  // Уведомляем отправителя через Socket.IO
-  const senderSocket = onlineUsers.get(fromId);
-  if (senderSocket) {
-    io.to(senderSocket).emit('messages_read', { by: req.userId });
-  }
-
-  res.json({ ok: true });
-});
-
 // ============ ИЗБРАННОЕ ============
 
 // Получить избранные сообщения (заметки себе)
@@ -253,25 +229,6 @@ io.on('connection', (socket) => {
         typingTimers.delete(key);
       }, 3000);
       typingTimers.set(key, timer);
-    }
-  });
-
-  // «Прочитано» — клиент шлёт, когда открыл чат
-  socket.on('read_messages', ({ from }) => {
-    if (!from) return;
-    const fromId = Number(from);
-    if (!fromId) return;
-
-    // Обновляем БД
-    db.prepare(`
-      UPDATE messages SET is_read = 1
-      WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
-    `).run(fromId, socket.userId);
-
-    // Уведомляем отправителя
-    const senderSocket = onlineUsers.get(fromId);
-    if (senderSocket) {
-      io.to(senderSocket).emit('messages_read', { by: socket.userId });
     }
   });
 

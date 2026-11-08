@@ -80,15 +80,12 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <!-- Карточка цитаты (скрыта по умолчанию) -->
+          <!-- Карточка цитаты (аватар + имя + текст) -->
           <div id="reply-preview" class="reply-preview" style="display:none">
-            <div class="reply-preview-bar"></div>
-            <div class="reply-preview-content">
-              <div class="reply-preview-emoji" id="reply-preview-emoji">💬</div>
-              <div class="reply-preview-text">
-                <div class="reply-preview-name" id="reply-preview-name"></div>
-                <div class="reply-preview-snippet" id="reply-preview-snippet"></div>
-              </div>
+            <div class="reply-preview-avatar" id="reply-preview-avatar">?</div>
+            <div class="reply-preview-text">
+              <div class="reply-preview-name" id="reply-preview-name"></div>
+              <div class="reply-preview-snippet" id="reply-preview-snippet"></div>
             </div>
             <button type="button" class="reply-preview-close" onclick="cancelReply()" title="Отменить">✕</button>
           </div>
@@ -201,15 +198,34 @@
     </div>
   </div>
 
-  <!-- Контекстное меню (долгий тап / правый клик) -->
-  <div id="context-menu" class="context-menu" style="display:none">
-    <button type="button" class="context-menu-item" onclick="contextReply()">
-      <span class="context-menu-icon">↩️</span>
-      <span data-i18n="contextReply">Ответить</span>
+  <!-- Модалка изменения сообщения -->
+  <div id="edit-message-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="editMessage">Изменить сообщение</h2>
+        <button class="modal-close" onclick="closeEditMessage()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="edit-message-input" class="modal-input" rows="4" placeholder="Текст сообщения..." data-i18n-placeholder="editMessagePlaceholder"></textarea>
+        <p class="error" id="edit-message-error"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeEditMessage()" data-i18n="cancel">Отмена</button>
+        <button class="btn-primary" onclick="saveEditedMessage()" data-i18n="save">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Меню действий (появляется при наведении / долгом тапе) -->
+  <div id="message-actions" class="message-actions" style="display:none">
+    <button type="button" class="message-action-btn" onclick="actionReply()" title="Ответить">
+      <span>↩️</span>
     </button>
-    <button type="button" class="context-menu-item" onclick="contextCopy()">
-      <span class="context-menu-icon">📋</span>
-      <span data-i18n="contextCopy">Копировать</span>
+    <button type="button" class="message-action-btn" onclick="actionCopy()" title="Копировать">
+      <span>📋</span>
+    </button>
+    <button type="button" class="message-action-btn" id="action-edit-btn" onclick="actionEdit()" title="Изменить" style="display:none">
+      <span>✏️</span>
     </button>
   </div>
 

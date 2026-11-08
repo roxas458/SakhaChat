@@ -53,4 +53,9 @@ try {
   db.exec('ALTER TABLE messages ADD COLUMN reply_to_id INTEGER;');
 } catch (e) { /* Колонка уже существует */ }
 
+// Добавляем edited_at (время последнего изменения сообщения)
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN edited_at DATETIME;');
+} catch (e) { /* Колонка уже существует */ }
+
 module.exports = db;

@@ -249,7 +249,7 @@ body {
   background: white;
   border-top: 1px solid #e4e6eb;
   display: flex;
-  flex-direction: column;   /* ← было row */
+  flex-direction: column;
   gap: 10px;
   flex-shrink: 0;
 }
@@ -799,104 +799,48 @@ body.dark .status.typing {
   50% { opacity: 0.5; }
 }
 
-/* ==================== ОТВЕТ НА СООБЩЕНИЕ ==================== */
+/* ==================== ОТВЕТ НА СООБЩЕНИЕ (красивый) ==================== */
 
-/* Цвета типов (по эмодзи) */
+/* Цвета настроения (по типу текста) */
 :root {
-  --reply-question: #ff9800;   /* ❓ */
-  --reply-laugh: #ffc107;      /* 😂 */
-  --reply-love: #e91e63;       /* ❤️ */
-  --reply-agree: #4caf50;      /* 👍 */
-  --reply-long: #607d8b;       /* 📝 */
-  --reply-default: #667eea;    /* 💬 */
+  --mood-question: #ff9800;
+  --mood-laugh: #ffc107;
+  --mood-love: #e91e63;
+  --mood-agree: #4caf50;
+  --mood-long: #607d8b;
+  --mood-default: #667eea;
 }
-
-/* Контекстное меню (долгий тап / правый клик) */
-.context-menu {
-  position: fixed;
-  background: white;
-  border: 1px solid #e4e6eb;
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
-  padding: 6px;
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 160px;
-  animation: contextFadeIn 0.12s ease;
-}
-@keyframes contextFadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to   { opacity: 1; transform: scale(1); }
-}
-body.dark .context-menu {
-  background: #242526;
-  border-color: #3e4042;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-}
-
-.context-menu-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  color: #1a1a1a;
-  text-align: left;
-  transition: background 0.15s;
-  width: 100%;
-}
-.context-menu-item:hover { background: #f0f2f5; }
-body.dark .context-menu-item { color: #e4e6eb; }
-body.dark .context-menu-item:hover { background: #3a3b3c; }
-
-.context-menu-icon { font-size: 16px; line-height: 1; }
 
 /* Карточка цитаты над composer'ом */
 .reply-preview {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  background: #f9fafc;
-  border: 1px solid #e4e6eb;
-  border-radius: 12px;
+  padding: 8px 12px 8px 8px;
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2f5 100%);
+  border-radius: 14px;
+  border-left: 4px solid #667eea;
   position: relative;
   overflow: hidden;
 }
 body.dark .reply-preview {
-  background: #2a2b2c;
-  border-color: #3e4042;
+  background: linear-gradient(135deg, #2d2f4a 0%, #3a3b3c 100%);
+  border-left-color: #8a92ff;
 }
 
-.reply-preview-bar {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--reply-default);
-}
-
-.reply-preview-content {
+.reply-preview-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-  padding-left: 4px;
-}
-
-.reply-preview-emoji {
-  font-size: 22px;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
   flex-shrink: 0;
-  line-height: 1;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
 }
 
 .reply-preview-text { min-width: 0; flex: 1; }
@@ -914,7 +858,7 @@ body.dark .reply-preview-name { color: #8a92ff; }
 
 .reply-preview-snippet {
   font-size: 13px;
-  color: #888;
+  color: #555;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -942,20 +886,19 @@ body.dark .reply-preview-snippet { color: #b0b3b8; }
 body.dark .reply-preview-close { color: #b0b3b8; }
 body.dark .reply-preview-close:hover { background: #3a1a1a; color: #ff6b6b; }
 
-/* Цитата внутри сообщения (ответ) */
+/* Цитата внутри сообщения (с аватаром) */
 .message .reply-quote {
   display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   margin: -4px -8px 8px;
   border-radius: 10px;
-  border-left: 3px solid var(--reply-default);
+  border-left: 3px solid #667eea;
   background: rgba(0, 0, 0, 0.05);
-  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s;
   max-width: 100%;
+  align-items: flex-start;
 }
 .message .reply-quote:hover { background: rgba(0, 0, 0, 0.08); }
 body.dark .message .reply-quote { background: rgba(255, 255, 255, 0.08); }
@@ -963,37 +906,106 @@ body.dark .message .reply-quote:hover { background: rgba(255, 255, 255, 0.12); }
 
 .message.mine .reply-quote {
   background: rgba(255, 255, 255, 0.15);
-  border-left-color: rgba(255, 255, 255, 0.6);
+  border-left-color: rgba(255, 255, 255, 0.7);
 }
 .message.mine .reply-quote:hover { background: rgba(255, 255, 255, 0.22); }
 
-.reply-quote-emoji { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.reply-quote-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 10px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.message.mine .reply-quote-avatar {
+  background: rgba(255, 255, 255, 0.3);
+}
 
-.reply-quote-text {
+.reply-quote-body { min-width: 0; flex: 1; }
+
+.reply-quote-name {
+  font-weight: 700;
+  font-size: 11px;
+  margin-bottom: 2px;
+  opacity: 0.9;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  opacity: 0.85;
-  min-width: 0;
 }
-.message.mine .reply-quote-text { opacity: 0.95; }
 
-/* Пульсация при клике на цитату */
-.message.reply-target {
-  animation: replyPulse 0.6s ease 3;
+.reply-quote-text {
+  font-size: 12px;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-wrap: break-word;
 }
-@keyframes replyPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
-  70%  { box-shadow: 0 0 0 12px rgba(255, 152, 0, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+
+/* Пометка «изм.» */
+.message .edited-mark {
+  font-size: 10px;
+  opacity: 0.6;
+  margin-left: 6px;
+  font-style: italic;
 }
+
+/* Меню действий (появляется при наведении / долгом тапе) */
+.message-actions {
+  position: absolute;
+  background: white;
+  border: 1px solid #e4e6eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  display: flex;
+  gap: 2px;
+  z-index: 500;
+  animation: actionsFadeIn 0.12s ease;
+}
+@keyframes actionsFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.dark .message-actions {
+  background: #242526;
+  border-color: #3e4042;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.message-action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-family: inherit;
+  padding: 0;
+  transition: background 0.15s;
+}
+.message-action-btn:hover { background: #eef0ff; }
+body.dark .message-action-btn:hover { background: #2d2f4a; }
 
 /* Мобильная адаптация */
 @media (max-width: 700px) {
-  .context-menu { min-width: 180px; }
-  .context-menu-item { padding: 12px 14px; font-size: 15px; }
-  .reply-preview { padding: 6px 10px; }
-  .reply-preview-emoji { font-size: 20px; }
+  .reply-preview { padding: 6px 10px 6px 6px; }
+  .reply-preview-avatar { width: 28px; height: 28px; font-size: 12px; }
   .reply-preview-snippet { font-size: 12px; }
-  .message .reply-quote { font-size: 11px; padding: 5px 8px; }
+  .reply-quote-avatar { width: 20px; height: 20px; font-size: 9px; }
+  .reply-quote-text { -webkit-line-clamp: 1; }
+  .message-action-btn { width: 34px; height: 34px; font-size: 16px; }
 }

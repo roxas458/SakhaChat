@@ -161,6 +161,34 @@ app.get('/api/messages/:userId', auth, (req, res) => {
   res.json(toNumArr(msgs));
 });
 
+// ============ РЕДАКТИРОВАНИЕ СООБЩЕНИЯ ============
+app.post('/api/messages/:id/edit', auth, (req, res) => {
+  const msgId = parseInt(req.params.id, 10);
+  const { text } = req.body;
+  if (!msgId) return res.status(400).json({ error: 'Invalid id' });
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
+
+  const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId);
+  if (!msg) return res.status(404).json({ error: 'Not found' });
+  if (Number(msg.sender_id) !== req.userId) return res.status(403).json({ error: 'Not yours' });
+
+  db.prepare('UPDATE messages SET text = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?').run(text.trim(), msgId);
+  const updated = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
+
+  // Уведомляем получателя через Socket.IO
+  const receiverSocket = onlineUsers.get(Number(msg.receiver_id));
+  if (receiverSocket) {
+    io.to(receiverSocket).emit('message_edited', updated);
+  }
+  // И себе (на случай других вкладок)
+  const senderSocket = onlineUsers.get(req.userId);
+  if (senderSocket) {
+    io.to(senderSocket).emit('message_edited', updated);
+  }
+
+  res.json(updated);
+});
+
 // ============ ИЗБРАННОЕ ============
 
 // Получить избранные сообщения (заметки себе)

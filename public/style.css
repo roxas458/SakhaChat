@@ -772,3 +772,18 @@ body.dark .message mark.current {
   .message-search-bar input { font-size: 16px; padding: 8px 12px; }
   .search-nav-btn, .search-close-btn { width: 34px; height: 34px; }
 }
+
+/* ==================== «ПЕЧАТАЕТ...» ==================== */
+.status.typing {
+  color: #667eea;
+  font-style: italic;
+  animation: typingPulse 1.4s ease-in-out infinite;
+}
+body.dark .status.typing {
+  color: #8a92ff;
+}
+
+@keyframes typingPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

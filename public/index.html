@@ -80,7 +80,7 @@
         </div>
         <div class="messages" id="messages"></div>
         <div class="composer">
-          <input type="text" id="message-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter')sendMessage()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
+          <input type="text" id="message-input" placeholder="Сообщение..." oninput="handleInputTyping()" onkeydown="if(event.key==='Enter')sendMessage()" onblur="stopTyping()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
           <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
       </div>

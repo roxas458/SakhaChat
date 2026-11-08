@@ -196,6 +196,7 @@ io.use((socket, next) => {
 });
 
 const onlineUsers = new Map();
+const typingTimers = new Map(); // userId:toUserId -> setTimeout
 
 io.on('connection', (socket) => {
   onlineUsers.set(socket.userId, socket.id);
@@ -204,6 +205,32 @@ io.on('connection', (socket) => {
   db.prepare('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(socket.userId);
   
   io.emit('online', Array.from(onlineUsers.keys()));
+
+  // «Печатает...»
+  socket.on('typing', ({ to, isTyping }) => {
+    if (!to) return;
+    const receiverSocket = onlineUsers.get(to);
+    if (!receiverSocket) return;
+
+    // Отправляем получателю
+    io.to(receiverSocket).emit('user_typing', { from: socket.userId, isTyping: !!isTyping });
+
+    // Сбрасываем старый таймаут
+    const key = socket.userId + ':' + to;
+    if (typingTimers.has(key)) {
+      clearTimeout(typingTimers.get(key));
+      typingTimers.delete(key);
+    }
+
+    // Если isTyping=true — ставим таймаут на 3 сек (защита от залипания)
+    if (isTyping) {
+      const timer = setTimeout(() => {
+        io.to(receiverSocket).emit('user_typing', { from: socket.userId, isTyping: false });
+        typingTimers.delete(key);
+      }, 3000);
+      typingTimers.set(key, timer);
+    }
+  });
 
   socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
@@ -216,6 +243,14 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     onlineUsers.delete(socket.userId);
+
+    // Чистим все таймеры этого пользователя
+    for (const [key, timer] of typingTimers.entries()) {
+      if (key.startsWith(socket.userId + ':')) {
+        clearTimeout(timer);
+        typingTimers.delete(key);
+      }
+    }
     
     // Обновляем last_seen при выходе
     db.prepare('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(socket.userId);

@@ -10,6 +10,12 @@ let searchMatches = [];
 let currentMatchIndex = -1;
 let searchOpen = false;
 
+// ==================== «ПЕЧАТАЕТ...» ====================
+let typingTimeout = null;
+let typingSent = false;
+let peerTypingTimeout = null;
+let peerTypingUserId = null;
+
 // ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
 const i18n = {
   ru: {
@@ -52,6 +58,7 @@ const i18n = {
     close: 'Закрыть',
     // Динамические
     inNetwork: 'в сети',
+    typing: 'печатает...',
     notInNetwork: 'не в сети',
     wasRecently: 'был(а) недавно',
     wasJustNow: 'был(а) только что',
@@ -117,6 +124,7 @@ const i18n = {
     close: 'Салҕаа',
     // Динамические
     inNetwork: 'ситимҥэ',
+    typing: 'суруйар...',
     notInNetwork: 'ситимҥэ суох',
     wasRecently: 'сотору',
     wasJustNow: 'билигин',
@@ -186,6 +194,69 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ==================== «ПЕЧАТАЕТ...» ====================
+function handleInputTyping() {
+  const input = document.getElementById('message-input');
+  if (!input || !socket || !currentChat || currentChat.id === 'saved') return;
+
+  const hasText = input.value.trim().length > 0;
+
+  if (hasText && !typingSent) {
+    socket.emit('typing', { to: currentChat.id, isTyping: true });
+    typingSent = true;
+  } else if (!hasText && typingSent) {
+    socket.emit('typing', { to: currentChat.id, isTyping: false });
+    typingSent = false;
+  }
+
+  if (typingTimeout) clearTimeout(typingTimeout);
+  if (hasText) {
+    typingTimeout = setTimeout(() => {
+      if (socket && currentChat && currentChat.id !== 'saved') {
+        socket.emit('typing', { to: currentChat.id, isTyping: false });
+      }
+      typingSent = false;
+    }, 3000);
+  }
+}
+
+function stopTyping() {
+  if (typingTimeout) {
+    clearTimeout(typingTimeout);
+    typingTimeout = null;
+  }
+  if (typingSent && socket && currentChat && currentChat.id !== 'saved') {
+    socket.emit('typing', { to: currentChat.id, isTyping: false });
+  }
+  typingSent = false;
+}
+
+function handlePeerTyping(data) {
+  if (!currentChat || data.from !== currentChat.id) return;
+
+  const statusEl = document.getElementById('chat-status');
+  if (!statusEl) return;
+
+  if (data.isTyping) {
+    peerTypingUserId = data.from;
+    statusEl.textContent = t('typing');
+    statusEl.className = 'status typing';
+
+    if (peerTypingTimeout) clearTimeout(peerTypingTimeout);
+    peerTypingTimeout = setTimeout(() => {
+      peerTypingUserId = null;
+      updateStatus();
+    }, 4000);
+  } else {
+    peerTypingUserId = null;
+    if (peerTypingTimeout) {
+      clearTimeout(peerTypingTimeout);
+      peerTypingTimeout = null;
+    }
+    updateStatus();
+  }
+}
+
 // ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
 function toggleMessageSearch() {
   if (searchOpen) {
@@ -216,7 +287,6 @@ function closeMessageSearch() {
   if (info) info.style.display = '';
   if (toggleBtn) toggleBtn.style.display = '';
 
-  // Убираем подсветку
   document.querySelectorAll('.message mark').forEach(m => {
     const parent = m.parentNode;
     if (parent) {
@@ -237,7 +307,6 @@ function filterMessages(query) {
   const q = (query || '').trim().toLowerCase();
   const messages = document.querySelectorAll('#messages .message');
 
-  // Сбрасываем старую подсветку
   messages.forEach(msg => {
     const text = msg.dataset.originalText || msg.textContent;
     if (!msg.dataset.originalText) msg.dataset.originalText = text;
@@ -421,6 +490,10 @@ function connectSocket() {
     updateStatus();
   });
 
+  socket.on('user_typing', (data) => {
+    handlePeerTyping(data);
+  });
+
   socket.on('new_message', (msg) => {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
@@ -483,7 +556,6 @@ function renderUserList() {
   const titleColor = isDark ? '#e4e6eb' : '#555';
   const textColor = isDark ? '#b0b3b8' : '#888';
 
-  // 1. Добавляем «Избранное» ВСЕГДА (если не ищем)
   if (!isSearching) {
     const savedDiv = document.createElement('div');
     savedDiv.className = 'user-item' + (currentChat && currentChat.id === 'saved' ? ' active' : '');
@@ -497,7 +569,6 @@ function renderUserList() {
     savedDiv.onclick = () => openSavedChat();
     list.appendChild(savedDiv);
 
-    // Разделитель
     const divider = document.createElement('div');
     divider.style.cssText = `height: 1px; background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}; margin: 6px 8px;`;
     list.appendChild(divider);
@@ -546,6 +617,9 @@ function renderUserList() {
 async function openChat(user) {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
+  stopTyping();
+  peerTypingUserId = null;
+  if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   markAsRead(user.id);
@@ -581,6 +655,9 @@ async function openChat(user) {
 async function openSavedChat() {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
+  stopTyping();
+  peerTypingUserId = null;
+  if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
   currentChat = { id: 'saved', displayName: t('saved'), username: 'saved' };
@@ -655,6 +732,12 @@ function updateStatus() {
   }
   const el = document.getElementById('chat-status');
 
+  if (peerTypingUserId === currentChat.id) {
+    el.textContent = t('typing');
+    el.className = 'status typing';
+    return;
+  }
+
   if (onlineUsers.has(currentChat.id)) {
     el.textContent = t('inNetwork');
     el.className = 'status';
@@ -725,7 +808,8 @@ function sendMessage() {
   const text = input.value.trim();
   if (!text || !currentChat) return;
 
-  // Если это Избранное — отправляем через REST API
+  stopTyping();
+
   if (currentChat.id === 'saved') {
     fetch('/api/messages', {
       method: 'POST',
@@ -836,7 +920,7 @@ async function saveProfile() {
 
 // ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
 async function openViewProfile() {
-  if (!currentChat || currentChat.id === 'saved') return; // Для избранного профиль не нужен
+  if (!currentChat || currentChat.id === 'saved') return;
   const modal = document.getElementById('view-profile-modal');
   
   modal.style.display = 'flex';

@@ -161,34 +161,6 @@ app.get('/api/messages/:userId', auth, (req, res) => {
   res.json(toNumArr(msgs));
 });
 
-// ============ РЕДАКТИРОВАНИЕ СООБЩЕНИЯ ============
-app.post('/api/messages/:id/edit', auth, (req, res) => {
-  const msgId = parseInt(req.params.id, 10);
-  const { text } = req.body;
-  if (!msgId) return res.status(400).json({ error: 'Invalid id' });
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
-
-  const msg = db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId);
-  if (!msg) return res.status(404).json({ error: 'Not found' });
-  if (Number(msg.sender_id) !== req.userId) return res.status(403).json({ error: 'Not yours' });
-
-  db.prepare('UPDATE messages SET text = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?').run(text.trim(), msgId);
-  const updated = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(msgId));
-
-  // Уведомляем получателя через Socket.IO
-  const receiverSocket = onlineUsers.get(Number(msg.receiver_id));
-  if (receiverSocket) {
-    io.to(receiverSocket).emit('message_edited', updated);
-  }
-  // И себе (на случай других вкладок)
-  const senderSocket = onlineUsers.get(req.userId);
-  if (senderSocket) {
-    io.to(senderSocket).emit('message_edited', updated);
-  }
-
-  res.json(updated);
-});
-
 // ============ ИЗБРАННОЕ ============
 
 // Получить избранные сообщения (заметки себе)
@@ -203,12 +175,12 @@ app.get('/api/saved-messages', auth, (req, res) => {
 
 // Отправить сообщение в Избранное (себе)
 app.post('/api/messages', auth, (req, res) => {
-  const { text, replyToId } = req.body;
+  const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
 
   const result = db.prepare(
-    'INSERT INTO messages (sender_id, receiver_id, text, reply_to_id) VALUES (?, ?, ?, ?)'
-  ).run(req.userId, req.userId, text.trim(), replyToId || null);
+    'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
+  ).run(req.userId, req.userId, text.trim());
 
   const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
   res.json(msg);
@@ -260,9 +232,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('send_message', ({ to, text, replyToId }, callback) => {
+  socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
-    const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text, reply_to_id) VALUES (?, ?, ?, ?)').run(socket.userId, to, text.trim(), replyToId || null);
+    const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)').run(socket.userId, to, text.trim());
     const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
     const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) io.to(receiverSocket).emit('new_message', msg);

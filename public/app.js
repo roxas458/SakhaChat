@@ -194,6 +194,50 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ==================== ПРОЧИТАНО (галочки) ====================
+function getTicksHtml(msg) {
+  // В Избранном — без галочек
+  if (currentChat && currentChat.id === 'saved') return '';
+  // Только для своих сообщений
+  if (msg.sender_id !== me.id) return '';
+  const isRead = Number(msg.is_read) === 1;
+  if (isRead) {
+    return '<span class="ticks read" title="Прочитано">✓✓</span>';
+  }
+  return '<span class="ticks" title="Отправлено">✓</span>';
+}
+
+async function markMessagesAsRead(otherUserId) {
+  if (!otherUserId || otherUserId === 'saved') return;
+  if (!token) return;
+
+  // REST — на случай, если Socket.IO отключён
+  try {
+    await fetch('/api/messages/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ fromUserId: otherUserId })
+    });
+  } catch (e) { /* ignore */ }
+
+  // Socket.IO — быстрее, если собеседник онлайн
+  if (socket) {
+    socket.emit('read_messages', { from: otherUserId });
+  }
+}
+
+function updateTicksForUser(userId) {
+  // Обновляем все свои сообщения к этому userId → ✓✓
+  document.querySelectorAll('#messages .message.mine').forEach(msgEl => {
+    const ticksEl = msgEl.querySelector('.ticks');
+    if (ticksEl) {
+      ticksEl.classList.add('read');
+      ticksEl.textContent = '✓✓';
+      ticksEl.title = 'Прочитано';
+    }
+  });
+}
+
 // ==================== «ПЕЧАТАЕТ...» ====================
 function handleInputTyping() {
   const input = document.getElementById('message-input');
@@ -312,7 +356,9 @@ function filterMessages(query) {
     if (!msg.dataset.originalText) msg.dataset.originalText = text;
     const timeEl = msg.querySelector('.time');
     const timeText = timeEl ? timeEl.outerHTML : '';
-    msg.innerHTML = escapeHtml(msg.dataset.originalText) + timeText;
+    const ticksEl = msg.querySelector('.ticks');
+    const ticksHtml = ticksEl ? ticksEl.outerHTML : '';
+    msg.innerHTML = escapeHtml(msg.dataset.originalText) + ticksHtml + timeText;
     msg.classList.remove('search-hidden');
   });
 
@@ -345,6 +391,8 @@ function filterMessages(query) {
 function highlightInMessage(msgEl, originalText, query) {
   const timeEl = msgEl.querySelector('.time');
   const timeText = timeEl ? timeEl.outerHTML : '';
+  const ticksEl = msgEl.querySelector('.ticks');
+  const ticksHtml = ticksEl ? ticksEl.outerHTML : '';
   const lowerText = originalText.toLowerCase();
   const lowerQuery = query.toLowerCase();
   let result = '';
@@ -359,7 +407,7 @@ function highlightInMessage(msgEl, originalText, query) {
   }
   result += escapeHtml(originalText.slice(lastIndex));
 
-  msgEl.innerHTML = result + timeText;
+  msgEl.innerHTML = result + ticksHtml + timeText;
 }
 
 function setCurrentMatch(index) {
@@ -497,9 +545,18 @@ function connectSocket() {
   socket.on('new_message', (msg) => {
     if (currentChat && msg.sender_id === currentChat.id) {
       appendMessage(msg, true);
+      // Собеседник прислал сообщение — отмечаем прочитанным сразу
+      markMessagesAsRead(msg.sender_id);
     } else {
       markAsUnread(msg.sender_id);
       loadChats();
+    }
+  });
+
+  // Собеседник прочитал мои сообщения
+  socket.on('messages_read', (data) => {
+    if (currentChat && currentChat.id === data.by) {
+      updateTicksForUser(data.by);
     }
   });
 
@@ -648,6 +705,9 @@ async function openChat(user) {
     container.innerHTML = `<div style="text-align: center; padding: 40px; color: #e53935;">${t('errorNetwork')}</div>`;
   }
 
+  // Отмечаем все сообщения от собеседника как прочитанные
+  markMessagesAsRead(user.id);
+
   if (!isMobile()) document.getElementById('message-input').focus();
 }
 
@@ -788,12 +848,17 @@ function appendMessage(msg, animate) {
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   div.dataset.createdAt = msg.created_at;
   div.dataset.originalText = msg.text;
+  if (msg.id !== undefined && msg.id !== null) {
+    div.dataset.messageId = String(msg.id);
+  }
+  div.dataset.isRead = String(msg.is_read || 0);
   
   if (!animate) div.style.animation = 'none';
   
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const ticksHtml = getTicksHtml(msg);
   
-  div.innerHTML = escapeHtml(msg.text) + `<span class="time">${time}</span>`;
+  div.innerHTML = escapeHtml(msg.text) + ticksHtml + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
 }

@@ -787,3 +787,53 @@ body.dark .status.typing {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* ==================== СТАТУС (быстрые кнопки) ==================== */
+.status-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.status-preset {
+  background: #f0f2f5;
+  border: 1px solid #e4e6eb;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #555;
+  white-space: nowrap;
+}
+.status-preset:hover {
+  background: #eef0ff;
+  border-color: #667eea;
+  color: #667eea;
+  transform: translateY(-1px);
+}
+.status-preset:active {
+  transform: translateY(0);
+}
+
+body.dark .status-preset {
+  background: #3a3b3c;
+  border-color: #3e4042;
+  color: #e4e6eb;
+}
+body.dark .status-preset:hover {
+  background: #2d2f4a;
+  border-color: #8a92ff;
+  color: #8a92ff;
+}
+
+/* Мобилка — чуть крупнее */
+@media (max-width: 700px) {
+  .status-preset {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+}

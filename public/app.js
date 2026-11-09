@@ -39,6 +39,9 @@ const i18n = {
     displayName: 'Отображаемое имя',
     yourName: 'Ваше имя',
     displayNameHint: 'Как вас будут видеть другие',
+    status: 'Статус',
+    statusPlaceholder: 'Например: На обеде',
+    statusHint: 'До 30 символов. Видно в шапке чата.',
     bio: 'О себе',
     bioPlaceholder: 'Расскажите о себе...',
     bioHint: 'До 150 символов. Видно другим пользователям.',
@@ -105,6 +108,9 @@ const i18n = {
     displayName: 'Көстөр ааккыт',
     yourName: 'Ааккыт',
     displayNameHint: 'Атын дьон эйигин хайдах көрүөхтэрэ',
+    status: 'Статус',
+    statusPlaceholder: 'Холобур: Обед',
+    statusHint: '30 бэлиэҕэ дылы. Кэпсэтии салаатыгар көстөр.',
     bio: 'Бэйэҥ тускунан',
     bioPlaceholder: 'Бэйэҥ тускунан кэпсээ...',
     bioHint: '150 бэлиэҕэ дылы. Атын дьоҥҥо көстөр.',
@@ -192,6 +198,12 @@ function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ==================== СТАТУС ====================
+function setStatusPreset(text) {
+  const input = document.getElementById('settings-status');
+  if (input) input.value = text;
 }
 
 // ==================== «ПЕЧАТАЕТ...» ====================
@@ -517,7 +529,10 @@ async function loadChats() {
   
   if (currentChat && currentChat.id !== 'saved') {
     const updated = usersCache.find(u => u.id === currentChat.id);
-    if (updated) currentChat.lastSeen = updated.lastSeen;
+    if (updated) {
+      currentChat.lastSeen = updated.lastSeen;
+      currentChat.status = updated.status;
+    }
     updateStatus();
   }
   renderUserList();
@@ -738,12 +753,23 @@ function updateStatus() {
     return;
   }
 
+  // Собираем: статус (если есть) + «· в сети» / «· был(а)»
+  let statusText = '';
+  if (currentChat.status) statusText = currentChat.status;
+
+  let activityText = '';
   if (onlineUsers.has(currentChat.id)) {
-    el.textContent = t('inNetwork');
+    activityText = t('inNetwork');
+  } else {
+    activityText = formatLastSeen(currentChat.lastSeen);
+  }
+
+  if (statusText) {
+    el.textContent = statusText + ' · ' + activityText;
     el.className = 'status';
   } else {
-    el.textContent = formatLastSeen(currentChat.lastSeen);
-    el.className = 'status offline';
+    el.textContent = activityText;
+    el.className = onlineUsers.has(currentChat.id) ? 'status' : 'status offline';
   }
 }
 
@@ -844,6 +870,8 @@ async function openSettings() {
   document.getElementById('settings-currentPassword').value = '';
   document.getElementById('settings-newPassword').value = '';
   document.getElementById('settings-bio').value = '';
+  const statusInput = document.getElementById('settings-status');
+  if (statusInput) statusInput.value = '';
 
   const themeToggle = document.getElementById('theme-toggle');
   if (themeToggle) {
@@ -863,6 +891,7 @@ async function openSettings() {
     document.getElementById('settings-username').textContent = '@' + data.username;
     document.getElementById('settings-displayName').value = data.displayName;
     document.getElementById('settings-bio').value = data.bio || '';
+    if (statusInput) statusInput.value = data.status || '';
 
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
@@ -881,6 +910,8 @@ async function saveProfile() {
 
   const displayName = document.getElementById('settings-displayName').value.trim();
   const bio = document.getElementById('settings-bio').value;
+  const statusInput = document.getElementById('settings-status');
+  const status = statusInput ? statusInput.value : '';
   const currentPassword = document.getElementById('settings-currentPassword').value;
   const newPassword = document.getElementById('settings-newPassword').value;
 
@@ -891,7 +922,7 @@ async function saveProfile() {
   saveBtn.disabled = true; saveBtn.textContent = t('saving');
 
   try {
-    const body = { displayName, bio };
+    const body = { displayName, bio, status };
     if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
 
     const r = await fetch('/api/profile', {
@@ -903,6 +934,7 @@ async function saveProfile() {
 
     me.displayName = data.displayName;
     me.bio = data.bio;
+    me.status = data.status || '';
     localStorage.setItem('sakhachat_user', JSON.stringify(me));
     document.getElementById('me-name').textContent = me.displayName;
     document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();

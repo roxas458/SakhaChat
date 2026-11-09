@@ -45,7 +45,7 @@ app.post('/api/register', (req, res) => {
     const newId = Number(result.lastInsertRowid);
     const token = crypto.randomBytes(32).toString('hex');
     db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, newId);
-    res.json({ token, user: { id: newId, username, displayName, bio: '' } });
+    res.json({ token, user: { id: newId, username, displayName, bio: '', status: '' } });
   } catch (e) { res.status(400).json({ error: 'Username taken' }); }
 });
 
@@ -57,7 +57,7 @@ app.post('/api/login', (req, res) => {
   const token = crypto.randomBytes(32).toString('hex');
   const userId = Number(user.id);
   db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, userId);
-  res.json({ token, user: { id: userId, username: user.username, displayName: user.display_name, bio: user.bio || '' } });
+  res.json({ token, user: { id: userId, username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '' } });
 });
 
 // Logout
@@ -68,15 +68,15 @@ app.post('/api/logout', auth, (req, res) => {
 
 // Свой профиль
 app.get('/api/me', auth, (req, res) => {
-  const user = db.prepare('SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?').get(req.userId);
+  const user = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'Not found' });
-  res.json({ id: Number(user.id), username: user.username, displayName: user.display_name, bio: user.bio || '', createdAt: user.created_at });
+  res.json({ id: Number(user.id), username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '', createdAt: user.created_at });
 });
 
 // Профиль другого пользователя
 app.get('/api/user/:id', auth, (req, res) => {
   const otherId = parseInt(req.params.id, 10);
-  const user = db.prepare('SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?').get(otherId);
+  const user = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(otherId);
   if (!user) return res.status(404).json({ error: 'Not found' });
 
   const firstMsg = db.prepare(`
@@ -90,6 +90,7 @@ app.get('/api/user/:id', auth, (req, res) => {
     username: user.username,
     displayName: user.display_name,
     bio: user.bio || '',
+    status: user.status || '',
     createdAt: user.created_at,
     firstMessageAt: firstMsg ? firstMsg.created_at : null
   });
@@ -97,7 +98,7 @@ app.get('/api/user/:id', auth, (req, res) => {
 
 // Обновление профиля
 app.post('/api/profile', auth, (req, res) => {
-  const { displayName, bio, currentPassword, newPassword } = req.body || {};
+  const { displayName, bio, status, currentPassword, newPassword } = req.body || {};
   if (displayName !== undefined) {
     const name = String(displayName).trim();
     if (name.length < 1 || name.length > 40) return res.status(400).json({ error: 'Имя от 1 до 40 символов' });
@@ -108,6 +109,11 @@ app.post('/api/profile', auth, (req, res) => {
     if (bioText.length > 150) return res.status(400).json({ error: 'Описание не более 150 символов' });
     db.prepare('UPDATE users SET bio = ? WHERE id = ?').run(bioText, req.userId);
   }
+  if (status !== undefined) {
+    const statusText = String(status).trim();
+    if (statusText.length > 30) return res.status(400).json({ error: 'Статус не более 30 символов' });
+    db.prepare('UPDATE users SET status = ? WHERE id = ?').run(statusText, req.userId);
+  }
   if (newPassword) {
     if (!currentPassword) return res.status(400).json({ error: 'Введите текущий пароль' });
     if (newPassword.length < 4) return res.status(400).json({ error: 'Новый пароль от 4 символов' });
@@ -116,8 +122,8 @@ app.post('/api/profile', auth, (req, res) => {
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, req.userId);
   }
-  const updated = db.prepare('SELECT id, username, display_name, bio, created_at FROM users WHERE id = ?').get(req.userId);
-  res.json({ id: Number(updated.id), username: updated.username, displayName: updated.display_name, bio: updated.bio || '', createdAt: updated.created_at });
+  const updated = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(req.userId);
+  res.json({ id: Number(updated.id), username: updated.username, displayName: updated.display_name, bio: updated.bio || '', status: updated.status || '', createdAt: updated.created_at });
 });
 
 // Поиск
@@ -132,7 +138,7 @@ app.get('/api/users', auth, (req, res) => {
 app.get('/api/chats', auth, (req, res) => {
   const chats = db.prepare(`
     SELECT 
-      u.id, u.username, u.display_name, u.last_seen,
+      u.id, u.username, u.display_name, u.last_seen, u.status,
       MAX(m.created_at) as last_message_time
     FROM users u
     JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
@@ -146,6 +152,7 @@ app.get('/api/chats', auth, (req, res) => {
     username: u.username,
     displayName: u.display_name,
     lastSeen: u.last_seen,
+    status: u.status || '',
     lastMessageTime: u.last_message_time
   })));
 });

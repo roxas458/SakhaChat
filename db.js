@@ -48,4 +48,9 @@ try {
   db.exec('ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0;');
 } catch (e) { /* Колонка уже существует */ }
 
+// Добавляем status (короткий статус пользователя)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+
 module.exports = db;

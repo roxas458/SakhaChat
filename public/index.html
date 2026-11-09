@@ -111,6 +111,20 @@
 
         <hr class="modal-divider">
 
+        <label class="field-label" data-i18n="status">Статус</label>
+        <input type="text" id="settings-status" class="modal-input" placeholder="Например: На обеде" maxlength="30" data-i18n-placeholder="statusPlaceholder">
+        <div class="status-presets" id="status-presets">
+          <button type="button" class="status-preset" onclick="setStatusPreset('😴 Сплю')">😴 Сплю</button>
+          <button type="button" class="status-preset" onclick="setStatusPreset('🍔 На обеде')">🍔 На обеде</button>
+          <button type="button" class="status-preset" onclick="setStatusPreset('🚫 Не беспокоить')">🚫 Не беспокоить</button>
+          <button type="button" class="status-preset" onclick="setStatusPreset('🏠 Дома')">🏠 Дома</button>
+          <button type="button" class="status-preset" onclick="setStatusPreset('✈️ В отпуске')">✈️ В отпуске</button>
+          <button type="button" class="status-preset" onclick="setStatusPreset('')">🧹 Очистить</button>
+        </div>
+        <p class="field-hint" data-i18n="statusHint">До 30 символов. Видно в шапке чата и в списке.</p>
+
+        <hr class="modal-divider">
+
         <label class="field-label" data-i18n="bio">О себе</label>
         <textarea id="settings-bio" class="modal-input" placeholder="Расскажите о себе..." maxlength="150" rows="3" data-i18n-placeholder="bioPlaceholder"></textarea>
         <p class="field-hint" data-i18n="bioHint">До 150 символов. Видно другим пользователям.</p>

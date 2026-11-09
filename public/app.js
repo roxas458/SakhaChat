@@ -16,6 +16,9 @@ let typingSent = false;
 let peerTypingTimeout = null;
 let peerTypingUserId = null;
 
+// ==================== СТАТИСТИКА ЧАТА ====================
+let chatStatsOpen = false;
+
 // ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
 const i18n = {
   ru: {
@@ -85,7 +88,15 @@ const i18n = {
     saved: 'Избранное',
     savedHint: 'Заметки для себя',
     savedOnly: 'Только для тебя',
-    savedEmpty: 'Не удалось загрузить'
+    savedEmpty: 'Не удалось загрузить',
+    // Статистика
+    chatStats: 'Статистика чата',
+    statsTotal: 'Всего сообщений',
+    statsFirst: 'Первое сообщение',
+    statsAvg: 'Средняя длина',
+    statsWhoMore: 'Кто больше пишет',
+    statsLongest: 'Самое длинное сообщение',
+    statsHint: 'По последним 200 сообщениям.'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -154,7 +165,15 @@ const i18n = {
     saved: 'Талыллыбыт',
     savedHint: 'Бэйэҕэр суруктар',
     savedOnly: 'Эрэ эйиэхэ эрэ',
-    savedEmpty: 'Сабалларбата'
+    savedEmpty: 'Сабалларбата',
+    // Статистика
+    chatStats: 'Кэпсэтии статистиката',
+    statsTotal: 'Барыта сурук',
+    statsFirst: 'Бастакы сурук',
+    statsAvg: 'Орто уһун',
+    statsWhoMore: 'Ким элбэҕи суруйар',
+    statsLongest: 'Саамай уһун сурук',
+    statsHint: 'Тиһэх 200 сурукка олоҕуран.'
   }
 };
 
@@ -204,6 +223,99 @@ function escapeHtml(s) {
 function setStatusPreset(text) {
   const input = document.getElementById('settings-status');
   if (input) input.value = text;
+}
+
+// ==================== СТАТИСТИКА ЧАТА ====================
+function openChatStats() {
+  if (!currentChat || currentChat.id === 'saved') return;
+
+  const messages = Array.from(document.querySelectorAll('#messages .message'));
+  if (messages.length === 0) {
+    // Пустой чат — показываем нули
+    document.getElementById('stats-total').textContent = '0';
+    document.getElementById('stats-first').textContent = '—';
+    document.getElementById('stats-avg').textContent = '0';
+    document.getElementById('stats-who-list').innerHTML = '';
+    document.getElementById('stats-longest-text').textContent = '—';
+    document.getElementById('stats-longest-meta').textContent = '';
+    document.getElementById('stats-modal').style.display = 'flex';
+    chatStatsOpen = true;
+    return;
+  }
+
+  // --- Всего сообщений ---
+  const total = messages.length;
+
+  // --- Первое сообщение ---
+  const firstMsg = messages[0];
+  const firstDate = firstMsg.dataset.createdAt || '';
+  let firstText = '—';
+  if (firstDate) {
+    const d = new Date(firstDate.replace(' ', 'T') + 'Z');
+    firstText = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // --- Средняя длина ---
+  let sumLen = 0;
+  messages.forEach(m => {
+    sumLen += (m.dataset.originalText || '').length;
+  });
+  const avgLen = Math.round(sumLen / total);
+
+  // --- Кто больше пишет ---
+  const counts = new Map(); // senderName -> count
+  messages.forEach(m => {
+    const isMine = m.classList.contains('mine');
+    const name = isMine ? (me.displayName || 'Я') : (currentChat.displayName || '—');
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+
+  const countsArr = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  const maxCount = countsArr.length > 0 ? countsArr[0][1] : 1;
+
+  // --- Самое длинное сообщение ---
+  let longestMsg = messages[0];
+  let longestLen = 0;
+  messages.forEach(m => {
+    const len = (m.dataset.originalText || '').length;
+    if (len > longestLen) {
+      longestLen = len;
+      longestMsg = m;
+    }
+  });
+  const longestIsMine = longestMsg.classList.contains('mine');
+  const longestAuthor = longestIsMine ? (me.displayName || 'Я') : (currentChat.displayName || '—');
+  const longestText = longestMsg.dataset.originalText || '';
+
+  // --- Заполняем модалку ---
+  document.getElementById('stats-total').textContent = total;
+  document.getElementById('stats-first').textContent = firstText;
+  document.getElementById('stats-avg').textContent = avgLen;
+
+  const whoList = document.getElementById('stats-who-list');
+  whoList.innerHTML = countsArr.map(([name, count]) => {
+    const percent = Math.round((count / maxCount) * 100);
+    return `<div class="stats-who-item">
+      <div class="stats-who-header">
+        <span class="stats-who-name">${escapeHtml(name)}</span>
+        <span class="stats-who-count">${count}</span>
+      </div>
+      <div class="stats-who-bar-wrap">
+        <div class="stats-who-bar" style="width: ${percent}%;"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('stats-longest-text').textContent = longestText;
+  document.getElementById('stats-longest-meta').textContent = `${longestLen} симв. · ${longestAuthor}`;
+
+  document.getElementById('stats-modal').style.display = 'flex';
+  chatStatsOpen = true;
+}
+
+function closeChatStats() {
+  document.getElementById('stats-modal').style.display = 'none';
+  chatStatsOpen = false;
 }
 
 // ==================== «ПЕЧАТАЕТ...» ====================
@@ -632,6 +744,7 @@ function renderUserList() {
 async function openChat(user) {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
+  if (chatStatsOpen) closeChatStats();
   stopTyping();
   peerTypingUserId = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
@@ -670,6 +783,7 @@ async function openChat(user) {
 async function openSavedChat() {
   document.getElementById('search').value = '';
   if (searchOpen) closeMessageSearch();
+  if (chatStatsOpen) closeChatStats();
   stopTyping();
   peerTypingUserId = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
@@ -997,6 +1111,8 @@ document.addEventListener('click', (e) => {
   if (modal && modal.style.display !== 'none' && e.target === modal) closeSettings();
   const viewModal = document.getElementById('view-profile-modal');
   if (viewModal && viewModal.style.display !== 'none' && e.target === viewModal) closeViewProfile();
+  const statsModal = document.getElementById('stats-modal');
+  if (statsModal && statsModal.style.display !== 'none' && e.target === statsModal) closeChatStats();
 });
 document.addEventListener('keydown', (e) => {
   const modal = document.getElementById('settings-modal');
@@ -1004,6 +1120,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     if (modal && modal.style.display !== 'none') closeSettings();
     if (viewModal && viewModal.style.display !== 'none') closeViewProfile();
+    if (chatStatsOpen) closeChatStats();
   }
 });
 

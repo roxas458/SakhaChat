@@ -837,3 +837,172 @@ body.dark .status-preset:hover {
     padding: 8px 14px;
   }
 }
+
+/* ==================== СТАТИСТИКА ЧАТА ==================== */
+
+/* Кнопка 📊 в шапке (как #search-toggle-btn) */
+#stats-toggle-btn {
+  background: #f0f2f5;
+  border: 1px solid #e4e6eb;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  line-height: 1;
+  font-family: inherit;
+}
+#stats-toggle-btn:hover { color: #667eea; border-color: #667eea; background: #eef0ff; }
+body.dark #stats-toggle-btn { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
+body.dark #stats-toggle-btn:hover { color: #8a92ff; border-color: #8a92ff; background: #2d2f4a; }
+
+/* 3 карточки */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.stats-card {
+  background: linear-gradient(135deg, #f8f9ff 0%, #f0f2f5 100%);
+  border: 1px solid #e8eaff;
+  border-radius: 14px;
+  padding: 14px 10px;
+  text-align: center;
+}
+
+.stats-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: #667eea;
+  margin-bottom: 4px;
+  line-height: 1.1;
+}
+
+.stats-label {
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+body.dark .stats-card {
+  background: linear-gradient(135deg, #2d2f4a 0%, #3a3b3c 100%);
+  border-color: #3e4042;
+}
+body.dark .stats-value { color: #8a92ff; }
+body.dark .stats-label { color: #b0b3b8; }
+
+/* «Кто больше пишет» */
+.stats-who-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.stats-who-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stats-who-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.stats-who-name {
+  font-weight: 700;
+  color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats-who-count {
+  font-weight: 700;
+  color: #667eea;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.stats-who-bar-wrap {
+  height: 8px;
+  background: #e4e6eb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stats-who-bar {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 4px;
+  transition: width 0.4s ease;
+}
+
+body.dark .stats-who-name { color: #e4e6eb; }
+body.dark .stats-who-count { color: #8a92ff; }
+body.dark .stats-who-bar-wrap { background: #3e4042; }
+
+/* «Самое длинное сообщение» — БЕЗ warning */
+.stats-longest-box {
+  background: #f7f8fa;
+  border: 1px solid #e4e6eb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.stats-longest-text {
+  font-size: 14px;
+  color: #1a1a1a;
+  line-height: 1.45;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  max-height: 4.35em; /* ≈ 3 строки × 1.45 */
+  margin-bottom: 6px;
+}
+
+.stats-longest-meta {
+  font-size: 12px;
+  color: #888;
+  font-weight: 600;
+}
+
+body.dark .stats-longest-box { background: #3a3b3c; border-color: #3e4042; }
+body.dark .stats-longest-text { color: #e4e6eb; }
+body.dark .stats-longest-meta { color: #b0b3b8; }
+
+/* Мобилка — карточки вертикально */
+@media (max-width: 700px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .stats-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    text-align: left;
+  }
+  .stats-value {
+    font-size: 20px;
+    margin-bottom: 0;
+    order: 2;
+  }
+  .stats-label {
+    order: 1;
+    text-align: left;
+  }
+  #stats-toggle-btn { font-size: 20px; padding: 8px 12px; }
+}

@@ -67,6 +67,7 @@
             <div class="name" id="chat-name"></div>
             <div class="status" id="chat-status"></div>
           </div>
+          <button id="stats-toggle-btn" type="button" title="Статистика" onclick="openChatStats()">📊</button>
           <button id="search-toggle-btn" type="button" title="Поиск" onclick="toggleMessageSearch()">🔍</button>
 
           <!-- Строка поиска (скрыта по умолчанию) -->
@@ -121,7 +122,7 @@
           <button type="button" class="status-preset" onclick="setStatusPreset('✈️ В отпуске')">✈️ В отпуске</button>
           <button type="button" class="status-preset" onclick="setStatusPreset('')">🧹 Очистить</button>
         </div>
-        <p class="field-hint" data-i18n="statusHint">До 30 символов. Видно в шапке чата и в списке.</p>
+        <p class="field-hint" data-i18n="statusHint">До 30 символов. Видно в шапке чата.</p>
 
         <hr class="modal-divider">
 
@@ -196,6 +197,46 @@
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeViewProfile()" data-i18n="close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка статистики чата -->
+  <div id="stats-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="chatStats">Статистика чата</h2>
+        <button class="modal-close" onclick="closeChatStats()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-grid">
+          <div class="stats-card">
+            <div class="stats-value" id="stats-total">0</div>
+            <div class="stats-label" data-i18n="statsTotal">Всего сообщений</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-value" id="stats-first">—</div>
+            <div class="stats-label" data-i18n="statsFirst">Первое сообщение</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-value" id="stats-avg">0</div>
+            <div class="stats-label" data-i18n="statsAvg">Средняя длина</div>
+          </div>
+        </div>
+
+        <label class="field-label" data-i18n="statsWhoMore">Кто больше пишет</label>
+        <div id="stats-who-list" class="stats-who-list"></div>
+
+        <label class="field-label" data-i18n="statsLongest">Самое длинное сообщение</label>
+        <div class="stats-longest-box">
+          <div id="stats-longest-text" class="stats-longest-text">—</div>
+          <div id="stats-longest-meta" class="stats-longest-meta"></div>
+        </div>
+
+        <p class="field-hint" data-i18n="statsHint">По последним 200 сообщениям.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeChatStats()" data-i18n="close">Закрыть</button>
       </div>
     </div>
   </div>

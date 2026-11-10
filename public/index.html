@@ -12,7 +12,6 @@
 <body>
   <!-- Auth screen -->
   <div id="auth-screen" class="screen">
-    <!-- Переключатель языка (до входа/регистрации) -->
     <div class="auth-lang" id="auth-lang">
       <button type="button" class="auth-lang-btn" data-lang="ru" onclick="setAuthLang('ru')">RU</button>
       <button type="button" class="auth-lang-btn" data-lang="sah" onclick="setAuthLang('sah')">SAH</button>
@@ -114,6 +113,16 @@
             <div class="username" id="settings-username"></div>
             <div class="member-since" id="settings-created"></div>
           </div>
+        </div>
+
+        <!-- ==================== АВАТАР ==================== -->
+        <div class="avatar-upload-row">
+          <div class="avatar-preview" id="settings-avatar-preview">?</div>
+          <div class="avatar-actions">
+            <button type="button" class="btn-avatar" onclick="document.getElementById('avatar-file-input').click()" data-i18n="uploadAvatar">Загрузить</button>
+            <button type="button" class="btn-avatar btn-avatar-remove" id="avatar-remove-btn" onclick="removeAvatar()" data-i18n="removeAvatar" style="display:none;">Удалить</button>
+          </div>
+          <input type="file" id="avatar-file-input" accept="image/*" style="display:none" onchange="handleAvatarUpload(this.files[0])">
         </div>
 
         <label class="field-label" data-i18n="displayName">Отображаемое имя</label>

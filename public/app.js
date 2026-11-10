@@ -7,6 +7,9 @@ let onlineUsers = new Set();
 let usersCache = [];
 let groupsCache = [];
 
+// ==================== АВАТАР (текущий в настройках) ====================
+let currentAvatarData = '';
+
 // ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
 let searchMatches = [];
 let currentMatchIndex = -1;
@@ -133,7 +136,12 @@ const i18n = {
     groupLeft: 'Вы вышли из группы',
     groupDeleted: 'Группа удалена',
     groupError: 'Ошибка',
-    groupNoMembers: 'Нет доступных участников. Начните личный чат с кем-нибудь!'
+    groupNoMembers: 'Нет доступных участников. Начните личный чат с кем-нибудь!',
+    // ==================== АВАТАР ====================
+    uploadAvatar: 'Загрузить',
+    removeAvatar: 'Удалить',
+    avatarInvalid: 'Выберите изображение (JPEG, PNG, WebP)',
+    avatarTooBig: 'Файл слишком большой (макс. 5 МБ)'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -242,7 +250,12 @@ const i18n = {
     groupLeft: 'Эн бөлөхтөн таҕыстыҥ',
     groupDeleted: 'Бөлөх сотулунна',
     groupError: 'Алҕас',
-    groupNoMembers: 'Кыттааччы суох. Бастаан кимниин эмит кэпсэт!'
+    groupNoMembers: 'Кыттааччы суох. Бастаан кимниин эмит кэпсэт!',
+    // ==================== АВАТАР ====================
+    uploadAvatar: 'Хачай',
+    removeAvatar: 'Сот',
+    avatarInvalid: 'Ойууну тал (JPEG, PNG, WebP)',
+    avatarTooBig: 'Байым улахан (5 МБ дылы)'
   }
 };
 
@@ -269,7 +282,6 @@ function applyLanguage() {
   const langSelect = document.getElementById('lang-select');
   if (langSelect) langSelect.value = currentLang;
 
-  // Подсветка активной кнопки языка на экране входа
   document.querySelectorAll('.auth-lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.lang === currentLang);
   });
@@ -286,7 +298,6 @@ function changeLanguage(lang) {
   applyLanguage();
 }
 
-// Переключатель языка на экране входа/регистрации
 function setAuthLang(lang) {
   currentLang = lang;
   localStorage.setItem('sakhachat_lang', lang);
@@ -298,6 +309,75 @@ function isMobile() { return window.matchMedia('(max-width: 700px)').matches; }
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ==================== АВАТАР ====================
+function renderAvatar(el, user) {
+  if (!el) return;
+  if (user && user.avatar) {
+    el.innerHTML = `<img src="${user.avatar}" alt="">`;
+  } else {
+    const name = (user && user.displayName) ? user.displayName : '?';
+    el.innerHTML = '';
+    el.textContent = name[0].toUpperCase();
+  }
+}
+
+async function handleAvatarUpload(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert(t('avatarInvalid')); return; }
+  if (file.size > 5 * 1024 * 1024) { alert(t('avatarTooBig')); return; }
+
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+
+    // Ресайз до 128x128 (cover, центр)
+    const SIZE = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+
+    const scale = Math.max(SIZE / img.width, SIZE / img.height);
+    const w = img.width * scale;
+    const h = img.height * scale;
+    const dx = (SIZE - w) / 2;
+    const dy = (SIZE - h) / 2;
+    ctx.drawImage(img, dx, dy, w, h);
+
+    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+
+    currentAvatarData = compressed;
+    renderAvatar(document.getElementById('settings-avatar-preview'), { avatar: compressed });
+    document.getElementById('avatar-remove-btn').style.display = '';
+    document.getElementById('avatar-file-input').value = '';
+  } catch (e) {
+    alert(t('errorNetwork'));
+  }
+}
+
+function removeAvatar() {
+  currentAvatarData = '';
+  const name = me.displayName || '?';
+  const el = document.getElementById('settings-avatar-preview');
+  if (el) {
+    el.innerHTML = '';
+    el.textContent = name[0].toUpperCase();
+  }
+  const btn = document.getElementById('avatar-remove-btn');
+  if (btn) btn.style.display = 'none';
 }
 
 // ==================== СТАТУС ====================
@@ -672,7 +752,7 @@ function initApp() {
   document.getElementById('chat-screen').style.display = 'flex';
   document.getElementById('me-name').textContent = me.displayName;
   document.getElementById('me-username').textContent = '@' + me.username;
-  document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
+  renderAvatar(document.getElementById('me-avatar'), me);
 
   applyLanguage();
   connectSocket();
@@ -729,6 +809,7 @@ async function loadChats() {
     if (updated) {
       currentChat.lastSeen = updated.lastSeen;
       currentChat.status = updated.status;
+      currentChat.avatar = updated.avatar;
     }
     updateStatus();
   }
@@ -851,7 +932,7 @@ function renderUserList() {
     const div = document.createElement('div');
     div.className = 'user-item' + (currentChat && currentChat.id === u.id && !currentGroup ? ' active' : '');
     div.innerHTML = `
-      <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
+      <div class="avatar" data-avatar-id="${u.id}">${escapeHtml(u.displayName[0].toUpperCase())}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
       <div>
         <div class="name" style="${isUnread ? 'font-weight: 800;' : ''}">${escapeHtml(u.displayName)}</div>
         <div class="username">@${escapeHtml(u.username)}</div>
@@ -860,6 +941,12 @@ function renderUserList() {
     `;
     div.onclick = () => openChat(u);
     list.appendChild(div);
+
+    // Заполняем аватар (если есть)
+    const avEl = div.querySelector('[data-avatar-id]');
+    if (avEl && u.avatar) {
+      avEl.innerHTML = `<img src="${u.avatar}" alt="">${isOnline ? '<span class="online-dot"></span>' : ''}`;
+    }
   }
 }
 
@@ -883,12 +970,11 @@ async function openChat(user) {
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
   const av = document.getElementById('chat-avatar');
-  av.textContent = user.displayName[0].toUpperCase();
-  av.style.background = '';
   av.classList.remove('group-avatar');
+  av.style.background = '';
+  renderAvatar(av, user);
   document.getElementById('chat-name').textContent = user.displayName;
 
-  // Показываем 📊 и 🔍, скрываем ℹ️
   document.getElementById('stats-toggle-btn').style.display = '';
   document.getElementById('search-toggle-btn').style.display = '';
   document.getElementById('group-info-btn').style.display = 'none';
@@ -987,7 +1073,6 @@ async function openGroupChat(group) {
   document.getElementById('chat-status').textContent = t('groupMembersCount').replace('{n}', group.membersCount);
   document.getElementById('chat-status').className = 'status';
 
-  // Скрываем 📊 и 🔍, показываем ℹ️
   document.getElementById('stats-toggle-btn').style.display = 'none';
   document.getElementById('search-toggle-btn').style.display = 'none';
   document.getElementById('group-info-btn').style.display = '';
@@ -1129,7 +1214,6 @@ function appendMessage(msg, animate) {
   
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
-  // Для группового чата — имя автора над сообщением (если не моё)
   let authorHtml = '';
   if (currentGroup && !isMine && msg.sender_name) {
     authorHtml = `<div class="message-author">${escapeHtml(msg.sender_name)}</div>`;
@@ -1221,7 +1305,7 @@ function renderGroupMembersPicker() {
     const div = document.createElement('div');
     div.className = 'group-member-item' + (checked ? ' checked' : '');
     div.innerHTML = `
-      <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}</div>
+      <div class="avatar" data-avatar-id="${u.id}">${escapeHtml(u.displayName[0].toUpperCase())}</div>
       <div class="group-member-info">
         <div class="group-member-name">${escapeHtml(u.displayName)}</div>
         <div class="group-member-username">@${escapeHtml(u.username)}</div>
@@ -1234,6 +1318,11 @@ function renderGroupMembersPicker() {
       renderGroupMembersPicker();
     };
     list.appendChild(div);
+
+    const avEl = div.querySelector('[data-avatar-id]');
+    if (avEl && u.avatar) {
+      avEl.innerHTML = `<img src="${u.avatar}" alt="">`;
+    }
   }
 }
 
@@ -1258,10 +1347,8 @@ async function createGroup() {
     closeCreateGroup();
     await loadGroups();
 
-    // Подписываемся на комнату группы
     if (socket && data.id) socket.emit('join_group', { groupId: data.id });
 
-    // Открываем созданную группу
     const created = groupsCache.find(g => g.id === data.id);
     if (created) openGroupChat(created);
   } catch (e) {
@@ -1279,7 +1366,6 @@ async function openGroupInfo() {
   document.getElementById('group-info-members-count').textContent = t('groupMembersCount').replace('{n}', currentGroup.membersCount);
   document.getElementById('group-info-members-list').innerHTML = '';
 
-  // Кнопки: «Выйти» — всем, «Удалить» — только создателю
   document.getElementById('group-leave-btn').style.display = '';
   document.getElementById('group-delete-btn').style.display = (currentGroup.creatorId === me.id) ? '' : 'none';
 
@@ -1295,13 +1381,20 @@ async function openGroupInfo() {
       const div = document.createElement('div');
       div.className = 'group-member-item';
       div.innerHTML = `
-        <div class="avatar">${escapeHtml(m.displayName[0].toUpperCase())}</div>
+        <div class="avatar" data-avatar-id="${m.id}">${escapeHtml(m.displayName[0].toUpperCase())}</div>
         <div class="group-member-info">
           <div class="group-member-name">${escapeHtml(m.displayName)}${m.id === me.id ? ' (вы)' : ''}</div>
           <div class="group-member-username">@${escapeHtml(m.username)}</div>
         </div>
       `;
       list.appendChild(div);
+
+      // Пытаемся найти аватар в usersCache (если есть)
+      const cached = usersCache.find(x => x.id === m.id);
+      const avEl = div.querySelector('[data-avatar-id]');
+      if (avEl && cached && cached.avatar) {
+        avEl.innerHTML = `<img src="${cached.avatar}" alt="">`;
+      }
     }
   } catch (e) {
     document.getElementById('group-info-members-list').innerHTML = `<div style="padding: 16px; text-align: center; color: #e53935;">${t('errorNetwork')}</div>`;
@@ -1385,12 +1478,17 @@ async function openSettings() {
     const data = await r.json();
     if (!r.ok) { document.getElementById('settings-error').textContent = data.error || t('errorNetwork'); return; }
 
-    document.getElementById('settings-avatar').textContent = data.displayName[0].toUpperCase();
     document.getElementById('settings-username-display').textContent = data.displayName;
     document.getElementById('settings-username').textContent = '@' + data.username;
     document.getElementById('settings-displayName').value = data.displayName;
     document.getElementById('settings-bio').value = data.bio || '';
     if (statusInput) statusInput.value = data.status || '';
+
+    // Аватар
+    currentAvatarData = data.avatar || '';
+    renderAvatar(document.getElementById('settings-avatar'), data);
+    renderAvatar(document.getElementById('settings-avatar-preview'), data);
+    document.getElementById('avatar-remove-btn').style.display = currentAvatarData ? '' : 'none';
 
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
@@ -1421,7 +1519,7 @@ async function saveProfile() {
   saveBtn.disabled = true; saveBtn.textContent = t('saving');
 
   try {
-    const body = { displayName, bio, status };
+    const body = { displayName, bio, status, avatar: currentAvatarData };
     if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
 
     const r = await fetch('/api/profile', {
@@ -1434,10 +1532,12 @@ async function saveProfile() {
     me.displayName = data.displayName;
     me.bio = data.bio;
     me.status = data.status || '';
+    me.avatar = data.avatar || '';
     localStorage.setItem('sakhachat_user', JSON.stringify(me));
     document.getElementById('me-name').textContent = me.displayName;
-    document.getElementById('me-avatar').textContent = me.displayName[0].toUpperCase();
-    document.getElementById('settings-avatar').textContent = me.displayName[0].toUpperCase();
+    renderAvatar(document.getElementById('me-avatar'), me);
+    renderAvatar(document.getElementById('settings-avatar'), me);
+    renderAvatar(document.getElementById('settings-avatar-preview'), me);
     document.getElementById('settings-username-display').textContent = me.displayName;
     document.getElementById('settings-currentPassword').value = '';
     document.getElementById('settings-newPassword').value = '';
@@ -1451,12 +1551,11 @@ async function saveProfile() {
 
 // ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
 async function openViewProfile() {
-  if (currentGroup) return; // В группах профиль не открываем
+  if (currentGroup) return;
   if (!currentChat || currentChat.id === 'saved') return;
   const modal = document.getElementById('view-profile-modal');
   
   modal.style.display = 'flex';
-  document.getElementById('view-profile-avatar').textContent = currentChat.displayName[0].toUpperCase();
   document.getElementById('view-profile-name').textContent = currentChat.displayName;
   document.getElementById('view-profile-username').textContent = '@' + currentChat.username;
   document.getElementById('view-profile-created').textContent = '';
@@ -1468,11 +1567,15 @@ async function openViewProfile() {
   const dateEl = document.getElementById('view-profile-chat-date');
   dateEl.textContent = '';
 
+  // Показываем кэш, пока грузим
+  renderAvatar(document.getElementById('view-profile-avatar'), currentChat);
+
   try {
     const r = await fetch('/api/user/' + currentChat.id, { headers: { Authorization: 'Bearer ' + token } });
     const data = await r.json();
     if (!r.ok) throw new Error('Ошибка загрузки');
 
+    renderAvatar(document.getElementById('view-profile-avatar'), data);
     bioEl.textContent = data.bio || t('noBio');
     
     if (data.createdAt) {

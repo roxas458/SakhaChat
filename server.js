@@ -45,7 +45,7 @@ app.post('/api/register', (req, res) => {
     const newId = Number(result.lastInsertRowid);
     const token = crypto.randomBytes(32).toString('hex');
     db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, newId);
-    res.json({ token, user: { id: newId, username, displayName, bio: '', status: '' } });
+    res.json({ token, user: { id: newId, username, displayName, bio: '', status: '', avatar: '' } });
   } catch (e) { res.status(400).json({ error: 'Username taken' }); }
 });
 
@@ -57,7 +57,7 @@ app.post('/api/login', (req, res) => {
   const token = crypto.randomBytes(32).toString('hex');
   const userId = Number(user.id);
   db.prepare('INSERT INTO sessions (token, user_id) VALUES (?, ?)').run(token, userId);
-  res.json({ token, user: { id: userId, username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '' } });
+  res.json({ token, user: { id: userId, username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '', avatar: user.avatar || '' } });
 });
 
 // Logout
@@ -68,15 +68,15 @@ app.post('/api/logout', auth, (req, res) => {
 
 // Свой профиль
 app.get('/api/me', auth, (req, res) => {
-  const user = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(req.userId);
+  const user = db.prepare('SELECT id, username, display_name, bio, status, avatar, created_at FROM users WHERE id = ?').get(req.userId);
   if (!user) return res.status(404).json({ error: 'Not found' });
-  res.json({ id: Number(user.id), username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '', createdAt: user.created_at });
+  res.json({ id: Number(user.id), username: user.username, displayName: user.display_name, bio: user.bio || '', status: user.status || '', avatar: user.avatar || '', createdAt: user.created_at });
 });
 
 // Профиль другого пользователя
 app.get('/api/user/:id', auth, (req, res) => {
   const otherId = parseInt(req.params.id, 10);
-  const user = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(otherId);
+  const user = db.prepare('SELECT id, username, display_name, bio, status, avatar, created_at FROM users WHERE id = ?').get(otherId);
   if (!user) return res.status(404).json({ error: 'Not found' });
 
   const firstMsg = db.prepare(`
@@ -91,6 +91,7 @@ app.get('/api/user/:id', auth, (req, res) => {
     displayName: user.display_name,
     bio: user.bio || '',
     status: user.status || '',
+    avatar: user.avatar || '',
     createdAt: user.created_at,
     firstMessageAt: firstMsg ? firstMsg.created_at : null
   });
@@ -98,7 +99,7 @@ app.get('/api/user/:id', auth, (req, res) => {
 
 // Обновление профиля
 app.post('/api/profile', auth, (req, res) => {
-  const { displayName, bio, status, currentPassword, newPassword } = req.body || {};
+  const { displayName, bio, status, avatar, currentPassword, newPassword } = req.body || {};
   if (displayName !== undefined) {
     const name = String(displayName).trim();
     if (name.length < 1 || name.length > 40) return res.status(400).json({ error: 'Имя от 1 до 40 символов' });
@@ -114,6 +115,17 @@ app.post('/api/profile', auth, (req, res) => {
     if (statusText.length > 30) return res.status(400).json({ error: 'Статус не более 30 символов' });
     db.prepare('UPDATE users SET status = ? WHERE id = ?').run(statusText, req.userId);
   }
+  if (avatar !== undefined) {
+    const avatarStr = String(avatar).trim();
+    if (avatarStr === '') {
+      // Удалить аватар
+      db.prepare('UPDATE users SET avatar = "" WHERE id = ?').run(req.userId);
+    } else {
+      if (!avatarStr.startsWith('data:image/')) return res.status(400).json({ error: 'Некорректный формат аватара' });
+      if (avatarStr.length > 70000) return res.status(400).json({ error: 'Аватар слишком большой (макс. ~50 КБ)' });
+      db.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatarStr, req.userId);
+    }
+  }
   if (newPassword) {
     if (!currentPassword) return res.status(400).json({ error: 'Введите текущий пароль' });
     if (newPassword.length < 4) return res.status(400).json({ error: 'Новый пароль от 4 символов' });
@@ -122,8 +134,8 @@ app.post('/api/profile', auth, (req, res) => {
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, req.userId);
   }
-  const updated = db.prepare('SELECT id, username, display_name, bio, status, created_at FROM users WHERE id = ?').get(req.userId);
-  res.json({ id: Number(updated.id), username: updated.username, displayName: updated.display_name, bio: updated.bio || '', status: updated.status || '', createdAt: updated.created_at });
+  const updated = db.prepare('SELECT id, username, display_name, bio, status, avatar, created_at FROM users WHERE id = ?').get(req.userId);
+  res.json({ id: Number(updated.id), username: updated.username, displayName: updated.display_name, bio: updated.bio || '', status: updated.status || '', avatar: updated.avatar || '', createdAt: updated.created_at });
 });
 
 // Поиск
@@ -138,7 +150,7 @@ app.get('/api/users', auth, (req, res) => {
 app.get('/api/chats', auth, (req, res) => {
   const chats = db.prepare(`
     SELECT 
-      u.id, u.username, u.display_name, u.last_seen, u.status,
+      u.id, u.username, u.display_name, u.last_seen, u.status, u.avatar,
       MAX(m.created_at) as last_message_time
     FROM users u
     JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
@@ -153,6 +165,7 @@ app.get('/api/chats', auth, (req, res) => {
     displayName: u.display_name,
     lastSeen: u.last_seen,
     status: u.status || '',
+    avatar: u.avatar || '',
     lastMessageTime: u.last_message_time
   })));
 });
@@ -194,15 +207,13 @@ app.post('/api/messages', auth, (req, res) => {
 
 // ============ ГРУППОВЫЕ ЧАТЫ ============
 
-const MAX_GROUP_MEMBERS = 21; // 20 приглашённых + создатель
+const MAX_GROUP_MEMBERS = 21;
 
-// Проверка: является ли пользователь участником группы
 function isGroupMember(groupId, userId) {
   const row = db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
   return !!row;
 }
 
-// Создать группу
 app.post('/api/groups', auth, (req, res) => {
   const { name, memberIds } = req.body || {};
   const groupName = String(name || '').trim();
@@ -211,7 +222,6 @@ app.post('/api/groups', auth, (req, res) => {
 
   if (!Array.isArray(memberIds)) return res.status(400).json({ error: 'memberIds должен быть массивом' });
 
-  // Очищаем: только числа, без создателя, без дублей
   const uniqueIds = [...new Set(
     memberIds
       .map(id => parseInt(id, 10))
@@ -221,7 +231,6 @@ app.post('/api/groups', auth, (req, res) => {
   if (uniqueIds.length === 0) return res.status(400).json({ error: 'Добавьте хотя бы одного участника' });
   if (uniqueIds.length + 1 > MAX_GROUP_MEMBERS) return res.status(400).json({ error: `Максимум ${MAX_GROUP_MEMBERS - 1} участников + вы` });
 
-  // Проверяем, что все пользователи существуют
   const placeholders = uniqueIds.map(() => '?').join(',');
   const existing = db.prepare(`SELECT id FROM users WHERE id IN (${placeholders})`).all(...uniqueIds);
   if (existing.length !== uniqueIds.length) return res.status(400).json({ error: 'Некоторые пользователи не найдены' });
@@ -230,7 +239,6 @@ app.post('/api/groups', auth, (req, res) => {
     const result = db.prepare('INSERT INTO groups (name, creator_id) VALUES (?, ?)').run(groupName, req.userId);
     const groupId = Number(result.lastInsertRowid);
 
-    // Создатель + участники
     const insertMember = db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)');
     insertMember.run(groupId, req.userId);
     for (const uid of uniqueIds) insertMember.run(groupId, uid);
@@ -241,7 +249,6 @@ app.post('/api/groups', auth, (req, res) => {
   }
 });
 
-// Список моих групп
 app.get('/api/groups', auth, (req, res) => {
   const groups = db.prepare(`
     SELECT 
@@ -264,7 +271,6 @@ app.get('/api/groups', auth, (req, res) => {
   })));
 });
 
-// Инфо о группе + участники
 app.get('/api/groups/:id', auth, (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   if (!isGroupMember(groupId, req.userId)) return res.status(403).json({ error: 'Нет доступа' });
@@ -289,7 +295,6 @@ app.get('/api/groups/:id', auth, (req, res) => {
   });
 });
 
-// История сообщений группы
 app.get('/api/groups/:id/messages', auth, (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   if (!isGroupMember(groupId, req.userId)) return res.status(403).json({ error: 'Нет доступа' });
@@ -307,7 +312,6 @@ app.get('/api/groups/:id/messages', auth, (req, res) => {
   res.json(toNumArr(msgs));
 });
 
-// Добавить участника (только создатель)
 app.post('/api/groups/:id/members', auth, (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const { userId } = req.body || {};
@@ -330,7 +334,6 @@ app.post('/api/groups/:id/members', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// Удалить участника / выйти (создатель может любого, участник — только себя)
 app.delete('/api/groups/:id/members/:userId', auth, (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const targetId = parseInt(req.params.userId, 10);
@@ -344,14 +347,12 @@ app.delete('/api/groups/:id/members/:userId', auth, (req, res) => {
   if (!isCreator && !isSelf) return res.status(403).json({ error: 'Нет прав' });
   if (!isGroupMember(groupId, targetId)) return res.status(404).json({ error: 'Не участник' });
 
-  // Создатель не может выйти сам — только удалить группу
   if (isSelf && isCreator) return res.status(400).json({ error: 'Создатель не может выйти. Удалите группу.' });
 
   db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, targetId);
   res.json({ ok: true });
 });
 
-// Удалить группу (только создатель)
 app.delete('/api/groups/:id', auth, (req, res) => {
   const groupId = parseInt(req.params.id, 10);
   const group = db.prepare('SELECT creator_id FROM groups WHERE id = ?').get(groupId);
@@ -382,20 +383,17 @@ io.on('connection', (socket) => {
   db.prepare('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(socket.userId);
   io.emit('online', Array.from(onlineUsers.keys()));
 
-  // Подписываем на все группы пользователя
   const userGroups = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').all(socket.userId);
   for (const g of userGroups) {
     socket.join('group_' + Number(g.group_id));
   }
 
-  // Клиент может попросить подписаться на новую группу (после создания)
   socket.on('join_group', ({ groupId }) => {
     const gid = parseInt(groupId, 10);
     if (!Number.isFinite(gid)) return;
     if (isGroupMember(gid, socket.userId)) socket.join('group_' + gid);
   });
 
-  // «Печатает...» (личные)
   socket.on('typing', ({ to, isTyping }) => {
     if (!to) return;
     const receiverSocket = onlineUsers.get(to);
@@ -417,7 +415,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Личное сообщение
   socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
     if (text.trim().length > 5000) return;
@@ -428,7 +425,6 @@ io.on('connection', (socket) => {
     if (callback) callback(msg);
   });
 
-  // Групповое сообщение
   socket.on('send_group_message', ({ groupId, text }, callback) => {
     const gid = parseInt(groupId, 10);
     if (!Number.isFinite(gid) || !text || !text.trim()) return;

@@ -76,6 +76,11 @@ try {
   db.exec('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "";');
 } catch (e) { /* Колонка уже существует */ }
 
+// Добавляем avatar (base64-картинка, ресайз 128x128 JPEG)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+
 // ==================== УСТАРЕВШИЕ КОЛОНКИ (наследие отката «галочек прочитано») ====================
 // Эти колонки больше НЕ используются ни в server.js, ни в app.js.
 // Оставлены только чтобы не ломать существующую sakhachat.db (SQLite DROP COLUMN рискован).

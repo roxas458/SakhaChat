@@ -10,6 +10,14 @@ let groupsCache = [];
 // ==================== АВАТАР (текущий в настройках) ====================
 let currentAvatarData = '';
 
+// ==================== ФОТО И ГОЛОСОВЫЕ ====================
+let pendingPhotoData = '';
+let mediaRecorder = null;
+let recordedChunks = [];
+let recordingStartTime = 0;
+let recordingTimer = null;
+let recordingStream = null;
+
 // ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
 let searchMatches = [];
 let currentMatchIndex = -1;
@@ -70,7 +78,6 @@ const i18n = {
     userProfile: 'Профиль пользователя',
     noBio: 'Пользователь ничего не рассказал о себе.',
     close: 'Закрыть',
-    // Динамические
     inNetwork: 'в сети',
     typing: 'печатает...',
     notInNetwork: 'не в сети',
@@ -97,7 +104,6 @@ const i18n = {
     savedHint: 'Заметки для себя',
     savedOnly: 'Только для тебя',
     savedEmpty: 'Не удалось загрузить',
-    // Статистика
     chatStats: 'Статистика чата',
     statsTotal: 'Всего сообщений',
     statsFirst: 'Первое сообщение',
@@ -105,7 +111,6 @@ const i18n = {
     statsWhoMore: 'Кто больше пишет',
     statsLongest: 'Самое длинное сообщение',
     statsHint: 'По последним 200 сообщениям.',
-    // Новые (i18n-пропуски)
     searchMessagesPlaceholder: 'Поиск по сообщениям...',
     statsTitle: 'Статистика',
     searchTitle: 'Поиск',
@@ -115,7 +120,6 @@ const i18n = {
     closeTitle: 'Закрыть',
     memberSince: 'В SakhaChat с {date}',
     chattingSince: '💬 Общаетесь с {date}',
-    // ==================== ГРУППЫ ====================
     groups: 'Группы',
     noGroups: 'Нет групп',
     createGroupTitle: 'Создать группу',
@@ -137,11 +141,22 @@ const i18n = {
     groupDeleted: 'Группа удалена',
     groupError: 'Ошибка',
     groupNoMembers: 'Нет доступных участников. Начните личный чат с кем-нибудь!',
-    // ==================== АВАТАР ====================
     uploadAvatar: 'Загрузить',
     removeAvatar: 'Удалить',
     avatarInvalid: 'Выберите изображение (JPEG, PNG, WebP)',
-    avatarTooBig: 'Файл слишком большой (макс. 5 МБ)'
+    avatarTooBig: 'Файл слишком большой (макс. 5 МБ)',
+    // ==================== ФОТО И ГОЛОСОВЫЕ ====================
+    attachPhoto: 'Фото',
+    recordVoice: 'Голосовое',
+    recordingHint: 'Идёт запись...',
+    sendBtn: 'Отправить',
+    photoPreviewTitle: 'Отправить фото?',
+    photoCaptionPlaceholder: 'Подпись (необязательно)',
+    photoTooBig: 'Фото слишком большое (макс. 5 МБ)',
+    photoInvalid: 'Выберите изображение',
+    voiceTooLong: 'Голосовое слишком длинное (макс. 60 сек)',
+    micDenied: 'Нет доступа к микрофону',
+    voiceRecordingError: 'Не удалось записать голосовое'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -184,7 +199,6 @@ const i18n = {
     userProfile: 'Кыттааччы профила',
     noBio: 'Кыттааччы бэйэтин тускунан тугу да кэпсээбэтэҕэ.',
     close: 'Салҕаа',
-    // Динамические
     inNetwork: 'ситимҥэ',
     typing: 'суруйар...',
     notInNetwork: 'ситимҥэ суох',
@@ -211,7 +225,6 @@ const i18n = {
     savedHint: 'Бэйэҕэр суруктар',
     savedOnly: 'Эрэ эйиэхэ эрэ',
     savedEmpty: 'Сабалларбата',
-    // Статистика
     chatStats: 'Кэпсэтии статистиката',
     statsTotal: 'Барыта сурук',
     statsFirst: 'Бастакы сурук',
@@ -219,7 +232,6 @@ const i18n = {
     statsWhoMore: 'Ким элбэҕи суруйар',
     statsLongest: 'Саамай уһун сурук',
     statsHint: 'Тиһэх 200 сурукка олоҕуран.',
-    // Новые (i18n-пропуски)
     searchMessagesPlaceholder: 'Суруктартан көрдөө...',
     statsTitle: 'Статистика',
     searchTitle: 'Көрдөө',
@@ -229,7 +241,6 @@ const i18n = {
     closeTitle: 'Салҕаа',
     memberSince: 'SakhaChat-ка {date} кыттан',
     chattingSince: '💬 {date} кыттан кэпсэтэҕит',
-    // ==================== ГРУППЫ ====================
     groups: 'Бөлөхтөр',
     noGroups: 'Бөлөх суох',
     createGroupTitle: 'Бөлөх оҥоруу',
@@ -251,11 +262,22 @@ const i18n = {
     groupDeleted: 'Бөлөх сотулунна',
     groupError: 'Алҕас',
     groupNoMembers: 'Кыттааччы суох. Бастаан кимниин эмит кэпсэт!',
-    // ==================== АВАТАР ====================
     uploadAvatar: 'Хачай',
     removeAvatar: 'Сот',
     avatarInvalid: 'Ойууну тал (JPEG, PNG, WebP)',
-    avatarTooBig: 'Байым улахан (5 МБ дылы)'
+    avatarTooBig: 'Байым улахан (5 МБ дылы)',
+    // ==================== ФОТО И ГОЛОСОВЫЕ ====================
+    attachPhoto: 'Ойуу',
+    recordVoice: 'Куолас',
+    recordingHint: 'Суруттаран эрэр...',
+    sendBtn: 'Ыыт',
+    photoPreviewTitle: 'Ойууну ыытыахха?',
+    photoCaptionPlaceholder: 'Илии баттааһын (булгуччута суох)',
+    photoTooBig: 'Ойуу улахан (5 МБ дылы)',
+    photoInvalid: 'Ойууну тал',
+    voiceTooLong: 'Куолас уһун (60 с дылы)',
+    micDenied: 'Микрофоҥҥа киирии суох',
+    voiceRecordingError: 'Куолаһы сурутар кыаллыбата'
   }
 };
 
@@ -343,7 +365,6 @@ async function handleAvatarUpload(file) {
       i.src = dataUrl;
     });
 
-    // Ресайз до 128x128 (cover, центр)
     const SIZE = 128;
     const canvas = document.createElement('canvas');
     canvas.width = SIZE;
@@ -378,6 +399,197 @@ function removeAvatar() {
   }
   const btn = document.getElementById('avatar-remove-btn');
   if (btn) btn.style.display = 'none';
+}
+
+// ==================== ФОТО ====================
+async function handlePhotoSelect(file) {
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { alert(t('photoInvalid')); return; }
+  if (file.size > 5 * 1024 * 1024) { alert(t('photoTooBig')); return; }
+
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    const img = await new Promise((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = dataUrl;
+    });
+
+    // Ресайз: вписываем в 800x800 (сохраняя пропорции)
+    const MAX = 800;
+    let w = img.width, h = img.height;
+    if (w > MAX || h > MAX) {
+      const scale = Math.min(MAX / w, MAX / h);
+      w = Math.round(w * scale);
+      h = Math.round(h * scale);
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+
+    pendingPhotoData = compressed;
+    document.getElementById('photo-preview-img').src = compressed;
+    document.getElementById('photo-caption-input').value = '';
+    document.getElementById('photo-preview-modal').style.display = 'flex';
+    document.getElementById('photo-input').value = '';
+  } catch (e) {
+    alert(t('errorNetwork'));
+  }
+}
+
+function closePhotoPreview() {
+  document.getElementById('photo-preview-modal').style.display = 'none';
+  pendingPhotoData = '';
+}
+
+function sendPhotoPreview() {
+  if (!pendingPhotoData) { closePhotoPreview(); return; }
+  const caption = document.getElementById('photo-caption-input').value.trim();
+  const photo = pendingPhotoData;
+
+  closePhotoPreview();
+
+  sendMessage({ text: caption, photo });
+}
+
+// ==================== ГОЛОСОВЫЕ ====================
+async function toggleVoiceRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    stopAndSendVoice();
+    return;
+  }
+  await startVoiceRecording();
+}
+
+async function startVoiceRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert(t('micDenied'));
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordingStream = stream;
+
+    let mimeType = 'audio/webm';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = 'audio/mp4';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = '';
+      }
+    }
+
+    mediaRecorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream);
+
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      // handled in stopAndSendVoice / cancelVoiceRecording
+    };
+
+    mediaRecorder.start();
+    recordingStartTime = Date.now();
+
+    // UI
+    document.getElementById('recording-bar').style.display = 'flex';
+    document.getElementById('voice-btn').classList.add('recording');
+    updateRecordingTime();
+
+    if (recordingTimer) clearInterval(recordingTimer);
+    recordingTimer = setInterval(() => {
+      updateRecordingTime();
+      const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+      if (elapsed >= 60) {
+        stopAndSendVoice();
+      }
+    }, 200);
+  } catch (e) {
+    alert(t('micDenied'));
+    cleanupRecording();
+  }
+}
+
+function updateRecordingTime() {
+  const el = document.getElementById('recording-time');
+  if (!el) return;
+  const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+  const mm = Math.floor(elapsed / 60);
+  const ss = String(elapsed % 60).padStart(2, '0');
+  el.textContent = `${mm}:${ss}`;
+}
+
+function stopAndSendVoice() {
+  if (!mediaRecorder) return;
+
+  const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+  if (duration < 1) {
+    // Слишком коротко — отменяем
+    cancelVoiceRecording();
+    return;
+  }
+
+  const recorder = mediaRecorder;
+  recorder.onstop = () => {
+    const blob = new Blob(recordedChunks, { type: recorder.mimeType || 'audio/webm' });
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result;
+      sendMessage({ voice: base64, voiceDuration: duration });
+    };
+    reader.readAsDataURL(blob);
+    cleanupRecording();
+  };
+
+  try {
+    recorder.stop();
+  } catch (e) {
+    cleanupRecording();
+  }
+}
+
+function cancelVoiceRecording() {
+  if (mediaRecorder) {
+    try { mediaRecorder.stop(); } catch (e) {}
+  }
+  cleanupRecording();
+}
+
+function cleanupRecording() {
+  if (recordingTimer) {
+    clearInterval(recordingTimer);
+    recordingTimer = null;
+  }
+  if (recordingStream) {
+    recordingStream.getTracks().forEach(t => t.stop());
+    recordingStream = null;
+  }
+  mediaRecorder = null;
+  recordedChunks = [];
+  recordingStartTime = 0;
+
+  const bar = document.getElementById('recording-bar');
+  if (bar) bar.style.display = 'none';
+  const btn = document.getElementById('voice-btn');
+  if (btn) btn.classList.remove('recording');
+  const tEl = document.getElementById('recording-time');
+  if (tEl) tEl.textContent = '0:00';
 }
 
 // ==================== СТАТУС ====================
@@ -858,7 +1070,6 @@ function renderUserList() {
   const textColor = isDark ? '#b0b3b8' : '#888';
 
   if (!isSearching) {
-    // ===== ГРУППЫ =====
     if (groupsCache.length > 0) {
       const groupsHeader = document.createElement('div');
       groupsHeader.style.cssText = `font-size: 11px; font-weight: 700; color: ${textColor}; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px 4px;`;
@@ -887,7 +1098,6 @@ function renderUserList() {
       list.appendChild(divider0);
     }
 
-    // ===== ИЗБРАННОЕ =====
     const savedDiv = document.createElement('div');
     savedDiv.className = 'user-item' + (currentChat && currentChat.id === 'saved' ? ' active' : '');
     savedDiv.innerHTML = `
@@ -942,7 +1152,6 @@ function renderUserList() {
     div.onclick = () => openChat(u);
     list.appendChild(div);
 
-    // Заполняем аватар (если есть)
     const avEl = div.querySelector('[data-avatar-id]');
     if (avEl && u.avatar) {
       avEl.innerHTML = `<img src="${u.avatar}" alt="">${isOnline ? '<span class="online-dot"></span>' : ''}`;
@@ -1208,7 +1417,7 @@ function appendMessage(msg, animate) {
   const div = document.createElement('div');
   div.className = 'message ' + (isMine ? 'mine' : 'theirs');
   div.dataset.createdAt = msg.created_at;
-  div.dataset.originalText = msg.text;
+  div.dataset.originalText = msg.text || '';
   
   if (!animate) div.style.animation = 'none';
   
@@ -1218,8 +1427,21 @@ function appendMessage(msg, animate) {
   if (currentGroup && !isMine && msg.sender_name) {
     authorHtml = `<div class="message-author">${escapeHtml(msg.sender_name)}</div>`;
   }
+
+  let mediaHtml = '';
+  if (msg.photo) {
+    mediaHtml += `<img src="${msg.photo}" class="message-photo" alt="" onclick="window.open(this.src, '_blank')">`;
+  }
+  if (msg.voice) {
+    mediaHtml += `<div class="message-voice"><audio controls src="${msg.voice}"></audio></div>`;
+  }
+
+  let textHtml = '';
+  if (msg.text) {
+    textHtml = escapeHtml(msg.text);
+  }
   
-  div.innerHTML = authorHtml + escapeHtml(msg.text) + `<span class="time">${time}</span>`;
+  div.innerHTML = authorHtml + mediaHtml + textHtml + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
 }
@@ -1229,10 +1451,22 @@ function scrollBottom() {
   requestAnimationFrame(() => { c.scrollTop = c.scrollHeight; });
 }
 
-function sendMessage() {
-  const input = document.getElementById('message-input');
-  const text = input.value.trim();
-  if (!text) return;
+// sendMessage теперь принимает объект { text, photo, voice, voiceDuration }
+function sendMessage(opts) {
+  opts = opts || {};
+  const text = (opts.text || '').trim();
+  const photo = opts.photo || '';
+  const voice = opts.voice || '';
+  const voiceDuration = opts.voiceDuration || 0;
+
+  // Если вызвано без аргументов (кнопка «Отправить» или Enter)
+  if (!text && !photo && !voice) {
+    const input = document.getElementById('message-input');
+    const inputText = input ? input.value.trim() : '';
+    if (!inputText) return;
+    return sendMessage({ text: inputText });
+  }
+
   if (!currentChat && !currentGroup) return;
 
   stopTyping();
@@ -1240,12 +1474,16 @@ function sendMessage() {
   // Групповой чат
   if (currentGroup) {
     if (!socket) return;
-    socket.emit('send_group_message', { groupId: currentGroup.id, text }, (msg) => {
+    socket.emit('send_group_message', {
+      groupId: currentGroup.id,
+      text, photo, voice, voiceDuration
+    }, (msg) => {
       appendMessage(msg, true);
       loadGroups();
     });
-    input.value = '';
-    if (!isMobile()) input.focus();
+    const input = document.getElementById('message-input');
+    if (input) input.value = '';
+    if (!isMobile() && input) input.focus();
     return;
   }
 
@@ -1254,27 +1492,35 @@ function sendMessage() {
     fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, photo, voice, voiceDuration })
     })
     .then(r => r.json())
     .then(msg => {
       appendMessage(msg, true);
-      input.value = '';
+      const input = document.getElementById('message-input');
+      if (input) input.value = '';
     })
     .catch(e => alert(t('errorNetwork')));
 
-    if (!isMobile()) input.focus();
+    if (!isMobile()) {
+      const input = document.getElementById('message-input');
+      if (input) input.focus();
+    }
     return;
   }
   
   // Личный чат
   if (!socket) return;
-  socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
+  socket.emit('send_message', {
+    to: currentChat.id,
+    text, photo, voice, voiceDuration
+  }, (msg) => {
     appendMessage(msg, true);
     loadChats();
   });
-  input.value = '';
-  if (!isMobile()) input.focus();
+  const input = document.getElementById('message-input');
+  if (input) input.value = '';
+  if (!isMobile() && input) input.focus();
 }
 
 // ==================== СОЗДАНИЕ ГРУППЫ ====================
@@ -1389,7 +1635,6 @@ async function openGroupInfo() {
       `;
       list.appendChild(div);
 
-      // Пытаемся найти аватар в usersCache (если есть)
       const cached = usersCache.find(x => x.id === m.id);
       const avEl = div.querySelector('[data-avatar-id]');
       if (avEl && cached && cached.avatar) {
@@ -1484,7 +1729,6 @@ async function openSettings() {
     document.getElementById('settings-bio').value = data.bio || '';
     if (statusInput) statusInput.value = data.status || '';
 
-    // Аватар
     currentAvatarData = data.avatar || '';
     renderAvatar(document.getElementById('settings-avatar'), data);
     renderAvatar(document.getElementById('settings-avatar-preview'), data);
@@ -1567,7 +1811,6 @@ async function openViewProfile() {
   const dateEl = document.getElementById('view-profile-chat-date');
   dateEl.textContent = '';
 
-  // Показываем кэш, пока грузим
   renderAvatar(document.getElementById('view-profile-avatar'), currentChat);
 
   try {
@@ -1607,6 +1850,8 @@ document.addEventListener('click', (e) => {
   if (createGroupModal && createGroupModal.style.display !== 'none' && e.target === createGroupModal) closeCreateGroup();
   const groupInfoModal = document.getElementById('group-info-modal');
   if (groupInfoModal && groupInfoModal.style.display !== 'none' && e.target === groupInfoModal) closeGroupInfo();
+  const photoModal = document.getElementById('photo-preview-modal');
+  if (photoModal && photoModal.style.display !== 'none' && e.target === photoModal) closePhotoPreview();
 });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
@@ -1619,6 +1864,10 @@ document.addEventListener('keydown', (e) => {
     if (cgm && cgm.style.display !== 'none') closeCreateGroup();
     const gim = document.getElementById('group-info-modal');
     if (gim && gim.style.display !== 'none') closeGroupInfo();
+    const photoModal = document.getElementById('photo-preview-modal');
+    if (photoModal && photoModal.style.display !== 'none') closePhotoPreview();
+    // Отмена записи голоса
+    if (mediaRecorder && mediaRecorder.state === 'recording') cancelVoiceRecording();
   }
 });
 

@@ -81,6 +81,28 @@ try {
   db.exec('ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT "";');
 } catch (e) { /* Колонка уже существует */ }
 
+// ==================== ФОТО И ГОЛОСОВЫЕ В ЛИЧНЫХ СООБЩЕНИЯХ ====================
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN photo TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN voice TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+try {
+  db.exec('ALTER TABLE messages ADD COLUMN voice_duration INTEGER DEFAULT 0;');
+} catch (e) { /* Колонка уже существует */ }
+
+// ==================== ФОТО И ГОЛОСОВЫЕ В ГРУППОВЫХ СООБЩЕНИЯХ ====================
+try {
+  db.exec('ALTER TABLE group_messages ADD COLUMN photo TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+try {
+  db.exec('ALTER TABLE group_messages ADD COLUMN voice TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+try {
+  db.exec('ALTER TABLE group_messages ADD COLUMN voice_duration INTEGER DEFAULT 0;');
+} catch (e) { /* Колонка уже существует */ }
+
 // ==================== УСТАРЕВШИЕ КОЛОНКИ (наследие отката «галочек прочитано») ====================
 // Эти колонки больше НЕ используются ни в server.js, ни в app.js.
 // Оставлены только чтобы не ломать существующую sakhachat.db (SQLite DROP COLUMN рискован).

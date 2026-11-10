@@ -319,12 +319,38 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 .message .time { display: block; font-size: 10px; opacity: 0.7; margin-top: 6px; font-weight: 500; }
+
+/* Фото в сообщении */
+.message-photo {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 12px;
+  display: block;
+  cursor: pointer;
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+
+/* Голосовое в сообщении */
+.message-voice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.message-voice audio {
+  width: 240px;
+  max-width: 100%;
+  height: 36px;
+}
+
 .composer {
   padding: 16px 20px;
   background: white;
   border-top: 1px solid #e4e6eb;
   display: flex;
-  gap: 10px;
+  gap: 8px;
+  align-items: center;
   flex-shrink: 0;
 }
 .composer input {
@@ -354,6 +380,82 @@ body {
   transition: all 0.2s;
 }
 .composer button:hover { transform: scale(1.08); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
+
+/* Кнопки 📎 и 🎤 в composer */
+.composer-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #e4e6eb;
+  background: #f0f2f5;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+  font-family: inherit;
+  color: #555;
+}
+.composer-icon-btn:hover { background: #eef0ff; border-color: #667eea; color: #667eea; }
+.composer-icon-btn:active { background: #e4e6eb; }
+.composer-icon-btn.recording {
+  background: #e53935;
+  border-color: #e53935;
+  color: white;
+  animation: recPulse 1s infinite;
+}
+
+/* Индикатор записи голоса */
+.recording-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #fff3f3;
+  border-top: 1px solid #ffcdd2;
+  flex-shrink: 0;
+}
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #e53935;
+  animation: recPulse 1s infinite;
+  flex-shrink: 0;
+}
+@keyframes recPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+.recording-time {
+  font-weight: 700;
+  font-size: 14px;
+  color: #e53935;
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+.recording-hint {
+  font-size: 13px;
+  color: #999;
+  flex: 1;
+}
+.recording-cancel, .recording-send {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.recording-cancel { background: white; color: #555; border: 1px solid #e4e6eb; }
+.recording-cancel:hover { background: #f0f2f5; }
+.recording-send { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+.recording-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
 
 /* ==================== BACK BUTTON ==================== */
 .back-btn {
@@ -566,6 +668,12 @@ body {
   .message { max-width: 82%; font-size: 15px; }
   .composer input, .search, .auth-box input { font-size: 16px; padding: 14px 16px; }
   .composer button { width: 48px; height: 48px; font-size: 20px; }
+  .composer-icon-btn { width: 40px; height: 40px; font-size: 16px; }
+  .recording-bar { padding: 10px 12px; gap: 6px; flex-wrap: wrap; }
+  .recording-hint { display: none; }
+  .recording-cancel, .recording-send { padding: 6px 10px; font-size: 12px; }
+  .message-photo { max-height: 240px; }
+  .message-voice audio { width: 100%; max-width: 220px; }
   .chat-header { padding: 14px 16px; gap: 10px; }
   .auth-box { width: 100%; max-width: 420px; padding: 32px 24px; }
   .auth-box h1 { font-size: 30px; }
@@ -665,8 +773,16 @@ body.dark .message.theirs { background: #3a3b3c; color: #e4e6eb; border: 1px sol
 body.dark .composer { background: #242526; border-top-color: #3e4042; }
 body.dark .composer input { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
 body.dark .composer input:focus { border-color: #7b8cff; background: #2a2b2c; }
+body.dark .composer-icon-btn { background: #3a3b3c; border-color: #3e4042; color: #e4e6eb; }
+body.dark .composer-icon-btn:hover { background: #2d2f4a; border-color: #7b8cff; color: #8a92ff; }
 body.dark .back-btn { color: #8a92ff; background: #3a3b3c; border-color: #3e4042; }
 body.dark .back-btn:hover { background: #4a4b4c; }
+
+/* Индикатор записи */
+body.dark .recording-bar { background: #3a1a1a; border-top-color: #5a2a2a; }
+body.dark .recording-hint { color: #b0b3b8; }
+body.dark .recording-cancel { background: #242526; color: #e4e6eb; border-color: #3e4042; }
+body.dark .recording-cancel:hover { background: #3a3b3c; }
 
 /* Модалка настроек */
 body.dark .modal-content { background: #242526; color: #e4e6eb; }
@@ -916,6 +1032,16 @@ body.dark .group-member-check { background: #3a3b3c; border-color: #3e4042; }
   background: linear-gradient(135deg, #43cea2, #185a9d);
   font-size: 20px;
 }
+
+/* Превью фото в модалке */
+.photo-preview-img {
+  width: 100%;
+  max-height: 50vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #f0f2f5;
+}
+body.dark .photo-preview-img { background: #3a3b3c; }
 
 /* ==================== ПОИСК ПО СООБЩЕНИЯМ ==================== */
 .chat-header-info { min-width: 0; flex: 1; }

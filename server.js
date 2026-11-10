@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static('public'));
 
 // Превращает BigInt в Number
@@ -22,6 +22,28 @@ function toNum(row) {
   return out;
 }
 function toNumArr(rows) { return rows.map(toNum); }
+
+// Валидация фото (base64 data URL)
+const MAX_PHOTO_LEN = 250000; // ~200 КБ base64
+function validatePhoto(photo) {
+  if (!photo) return { ok: true, value: '' };
+  const s = String(photo).trim();
+  if (s === '') return { ok: true, value: '' };
+  if (!s.startsWith('data:image/')) return { ok: false, error: 'Некорректный формат фото' };
+  if (s.length > MAX_PHOTO_LEN) return { ok: false, error: 'Фото слишком большое (макс. ~200 КБ)' };
+  return { ok: true, value: s };
+}
+
+// Валидация голосового (base64 data URL)
+const MAX_VOICE_LEN = 700000; // ~500 КБ base64
+function validateVoice(voice) {
+  if (!voice) return { ok: true, value: '' };
+  const s = String(voice).trim();
+  if (s === '') return { ok: true, value: '' };
+  if (!s.startsWith('data:audio/')) return { ok: false, error: 'Некорректный формат голосового' };
+  if (s.length > MAX_VOICE_LEN) return { ok: false, error: 'Голосовое слишком большое (макс. ~500 КБ)' };
+  return { ok: true, value: s };
+}
 
 // Auth middleware
 function auth(req, res, next) {
@@ -118,7 +140,6 @@ app.post('/api/profile', auth, (req, res) => {
   if (avatar !== undefined) {
     const avatarStr = String(avatar).trim();
     if (avatarStr === '') {
-      // Удалить аватар
       db.prepare('UPDATE users SET avatar = "" WHERE id = ?').run(req.userId);
     } else {
       if (!avatarStr.startsWith('data:image/')) return res.status(400).json({ error: 'Некорректный формат аватара' });
@@ -174,7 +195,7 @@ app.get('/api/chats', auth, (req, res) => {
 app.get('/api/messages/:userId', auth, (req, res) => {
   const otherId = parseInt(req.params.userId, 10);
   const msgs = db.prepare(`
-    SELECT id, sender_id, receiver_id, text, created_at FROM messages
+    SELECT id, sender_id, receiver_id, text, photo, voice, voice_duration, created_at FROM messages
     WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
     ORDER BY created_at ASC LIMIT 200
   `).all(req.userId, otherId, otherId, req.userId);
@@ -185,7 +206,7 @@ app.get('/api/messages/:userId', auth, (req, res) => {
 
 app.get('/api/saved-messages', auth, (req, res) => {
   const msgs = db.prepare(`
-    SELECT id, sender_id, receiver_id, text, created_at FROM messages
+    SELECT id, sender_id, receiver_id, text, photo, voice, voice_duration, created_at FROM messages
     WHERE sender_id = ? AND receiver_id = ?
     ORDER BY created_at ASC LIMIT 200
   `).all(req.userId, req.userId);
@@ -193,15 +214,27 @@ app.get('/api/saved-messages', auth, (req, res) => {
 });
 
 app.post('/api/messages', auth, (req, res) => {
-  const { text } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
-  if (text.trim().length > 5000) return res.status(400).json({ error: 'Слишком длинное сообщение' });
+  const { text, photo, voice, voiceDuration } = req.body || {};
+  const textStr = (text || '').trim();
+
+  const pCheck = validatePhoto(photo);
+  if (!pCheck.ok) return res.status(400).json({ error: pCheck.error });
+  const vCheck = validateVoice(voice);
+  if (!vCheck.ok) return res.status(400).json({ error: vCheck.error });
+
+  if (!textStr && !pCheck.value && !vCheck.value) {
+    return res.status(400).json({ error: 'Пустое сообщение' });
+  }
+  if (textStr.length > 5000) return res.status(400).json({ error: 'Слишком длинное сообщение' });
+
+  const dur = parseInt(voiceDuration, 10);
+  const voiceDur = Number.isFinite(dur) && dur > 0 && dur <= 60 ? dur : 0;
 
   const result = db.prepare(
-    'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
-  ).run(req.userId, req.userId, text.trim());
+    'INSERT INTO messages (sender_id, receiver_id, text, photo, voice, voice_duration) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(req.userId, req.userId, textStr, pCheck.value, vCheck.value, voiceDur);
 
-  const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
+  const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, photo, voice, voice_duration, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
   res.json(msg);
 });
 
@@ -301,7 +334,7 @@ app.get('/api/groups/:id/messages', auth, (req, res) => {
 
   const msgs = db.prepare(`
     SELECT 
-      gm.id, gm.group_id, gm.sender_id, gm.text, gm.created_at,
+      gm.id, gm.group_id, gm.sender_id, gm.text, gm.photo, gm.voice, gm.voice_duration, gm.created_at,
       u.display_name AS sender_name
     FROM group_messages gm
     JOIN users u ON u.id = gm.sender_id
@@ -415,25 +448,55 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('send_message', ({ to, text }, callback) => {
-    if (!to || !text || !text.trim()) return;
-    if (text.trim().length > 5000) return;
-    const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)').run(socket.userId, to, text.trim());
-    const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
+  // Личное сообщение
+  socket.on('send_message', (data, callback) => {
+    const { to, text, photo, voice, voiceDuration } = data || {};
+    if (!to) return;
+
+    const textStr = (text || '').trim();
+    const pCheck = validatePhoto(photo);
+    const vCheck = validateVoice(voice);
+    if (!pCheck.ok || !vCheck.ok) return;
+    if (!textStr && !pCheck.value && !vCheck.value) return;
+    if (textStr.length > 5000) return;
+
+    const dur = parseInt(voiceDuration, 10);
+    const voiceDur = Number.isFinite(dur) && dur > 0 && dur <= 60 ? dur : 0;
+
+    const result = db.prepare(
+      'INSERT INTO messages (sender_id, receiver_id, text, photo, voice, voice_duration) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(socket.userId, to, textStr, pCheck.value, vCheck.value, voiceDur);
+
+    const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, photo, voice, voice_duration, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
+
     const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) io.to(receiverSocket).emit('new_message', msg);
     if (callback) callback(msg);
   });
 
-  socket.on('send_group_message', ({ groupId, text }, callback) => {
+  // Групповое сообщение
+  socket.on('send_group_message', (data, callback) => {
+    const { groupId, text, photo, voice, voiceDuration } = data || {};
     const gid = parseInt(groupId, 10);
-    if (!Number.isFinite(gid) || !text || !text.trim()) return;
-    if (text.trim().length > 5000) return;
+    if (!Number.isFinite(gid)) return;
     if (!isGroupMember(gid, socket.userId)) return;
 
-    const result = db.prepare('INSERT INTO group_messages (group_id, sender_id, text) VALUES (?, ?, ?)').run(gid, socket.userId, text.trim());
+    const textStr = (text || '').trim();
+    const pCheck = validatePhoto(photo);
+    const vCheck = validateVoice(voice);
+    if (!pCheck.ok || !vCheck.ok) return;
+    if (!textStr && !pCheck.value && !vCheck.value) return;
+    if (textStr.length > 5000) return;
+
+    const dur = parseInt(voiceDuration, 10);
+    const voiceDur = Number.isFinite(dur) && dur > 0 && dur <= 60 ? dur : 0;
+
+    const result = db.prepare(
+      'INSERT INTO group_messages (group_id, sender_id, text, photo, voice, voice_duration) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(gid, socket.userId, textStr, pCheck.value, vCheck.value, voiceDur);
+
     const row = db.prepare(`
-      SELECT gm.id, gm.group_id, gm.sender_id, gm.text, gm.created_at, u.display_name AS sender_name
+      SELECT gm.id, gm.group_id, gm.sender_id, gm.text, gm.photo, gm.voice, gm.voice_duration, gm.created_at, u.display_name AS sender_name
       FROM group_messages gm JOIN users u ON u.id = gm.sender_id
       WHERE gm.id = ?
     `).get(result.lastInsertRowid);

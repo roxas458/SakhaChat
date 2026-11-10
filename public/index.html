@@ -89,9 +89,22 @@
           </div>
         </div>
         <div class="messages" id="messages"></div>
+
+        <!-- Индикатор записи голоса (скрыт по умолчанию) -->
+        <div id="recording-bar" class="recording-bar" style="display:none">
+          <span class="recording-dot"></span>
+          <span class="recording-time" id="recording-time">0:00</span>
+          <span class="recording-hint" data-i18n="recordingHint">Идёт запись...</span>
+          <button type="button" class="recording-cancel" onclick="cancelVoiceRecording()" data-i18n="cancel">Отмена</button>
+          <button type="button" class="recording-send" onclick="stopAndSendVoice()" data-i18n="sendBtn">Отправить</button>
+        </div>
+
         <div class="composer">
+          <button type="button" class="composer-icon-btn" id="attach-btn" onclick="document.getElementById('photo-input').click()" title="Фото" data-i18n-title="attachPhoto">📎</button>
+          <button type="button" class="composer-icon-btn" id="voice-btn" onclick="toggleVoiceRecording()" title="Голосовое" data-i18n-title="recordVoice">🎤</button>
           <input type="text" id="message-input" placeholder="Сообщение..." oninput="handleInputTyping()" onkeydown="if(event.key==='Enter')sendMessage()" onblur="stopTyping()" autocomplete="off" data-i18n-placeholder="messagePlaceholder">
           <button id="send-btn" onclick="sendMessage()">➤</button>
+          <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this.files[0])">
         </div>
       </div>
     </main>
@@ -306,6 +319,24 @@
         <button class="btn-secondary" onclick="closeGroupInfo()" data-i18n="close">Закрыть</button>
         <button class="btn-secondary" id="group-leave-btn" onclick="leaveGroup()" data-i18n="leaveGroup" style="display:none;">Выйти</button>
         <button class="btn-primary" id="group-delete-btn" onclick="deleteGroup()" data-i18n="deleteGroup" style="display:none;">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка превью фото -->
+  <div id="photo-preview-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="photoPreviewTitle">Отправить фото?</h2>
+        <button class="modal-close" onclick="closePhotoPreview()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <img id="photo-preview-img" class="photo-preview-img" alt="">
+        <input type="text" id="photo-caption-input" class="modal-input" placeholder="Подпись (необязательно)" maxlength="500" data-i18n-placeholder="photoCaptionPlaceholder" style="margin-top:12px">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePhotoPreview()" data-i18n="cancel">Отмена</button>
+        <button class="btn-primary" onclick="sendPhotoPreview()" data-i18n="sendBtn">Отправить</button>
       </div>
     </div>
   </div>

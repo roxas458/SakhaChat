@@ -443,7 +443,7 @@ io.on('connection', (socket) => {
     `).get(result.lastInsertRowid);
     const msg = toNum(row);
 
-    io.to('group_' + gid).emit('new_group_message', msg);
+    socket.to('group_' + gid).emit('new_group_message', msg);
     if (callback) callback(msg);
   });
 

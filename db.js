@@ -39,18 +39,21 @@ try {
   db.exec('ALTER TABLE users ADD COLUMN last_seen DATETIME;');
 } catch (e) { /* Колонка уже существует */ }
 
-// Оставляем колонки для галочек (чтобы старый код не падал)
+// Добавляем status (короткий статус пользователя)
+try {
+  db.exec('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "";');
+} catch (e) { /* Колонка уже существует */ }
+
+// ==================== УСТАРЕВШИЕ КОЛОНКИ (наследие отката «галочек прочитано») ====================
+// Эти колонки больше НЕ используются ни в server.js, ни в app.js.
+// Оставлены только чтобы не ломать существующую sakhachat.db (SQLite DROP COLUMN рискован).
+// При следующей чистовой миграции БД — можно удалить.
 try {
   db.exec('ALTER TABLE messages ADD COLUMN delivered INTEGER DEFAULT 0;');
 } catch (e) { /* Колонка уже существует */ }
 
 try {
   db.exec('ALTER TABLE messages ADD COLUMN is_read INTEGER DEFAULT 0;');
-} catch (e) { /* Колонка уже существует */ }
-
-// Добавляем status (короткий статус пользователя)
-try {
-  db.exec('ALTER TABLE users ADD COLUMN status TEXT DEFAULT "";');
 } catch (e) { /* Колонка уже существует */ }
 
 module.exports = db;

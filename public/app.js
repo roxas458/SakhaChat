@@ -96,7 +96,17 @@ const i18n = {
     statsAvg: 'Средняя длина',
     statsWhoMore: 'Кто больше пишет',
     statsLongest: 'Самое длинное сообщение',
-    statsHint: 'По последним 200 сообщениям.'
+    statsHint: 'По последним 200 сообщениям.',
+    // Новые (i18n-пропуски)
+    searchMessagesPlaceholder: 'Поиск по сообщениям...',
+    statsTitle: 'Статистика',
+    searchTitle: 'Поиск',
+    openProfileTitle: 'Открыть профиль',
+    prevTitle: 'Предыдущее',
+    nextTitle: 'Следующее',
+    closeTitle: 'Закрыть',
+    memberSince: 'В SakhaChat с {date}',
+    chattingSince: '💬 Общаетесь с {date}'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -173,7 +183,17 @@ const i18n = {
     statsAvg: 'Орто уһун',
     statsWhoMore: 'Ким элбэҕи суруйар',
     statsLongest: 'Саамай уһун сурук',
-    statsHint: 'Тиһэх 200 сурукка олоҕуран.'
+    statsHint: 'Тиһэх 200 сурукка олоҕуран.',
+    // Новые (i18n-пропуски)
+    searchMessagesPlaceholder: 'Суруктартан көрдөө...',
+    statsTitle: 'Статистика',
+    searchTitle: 'Көрдөө',
+    openProfileTitle: 'Профилы арый',
+    prevTitle: 'Инники',
+    nextTitle: 'Кэнники',
+    closeTitle: 'Салҕаа',
+    memberSince: 'SakhaChat-ка {date} кыттан',
+    chattingSince: '💬 {date} кыттан кэпсэтэҕит'
   }
 };
 
@@ -628,7 +648,9 @@ function connectSocket() {
   });
 
   socket.on('connect_error', () => {
-    localStorage.clear();
+    // Чистим только токен и пользователя, не трогаем язык/тему/непрочитанные
+    localStorage.removeItem('sakhachat_token');
+    localStorage.removeItem('sakhachat_user');
     location.reload();
   });
 }
@@ -687,7 +709,7 @@ function renderUserList() {
     const savedDiv = document.createElement('div');
     savedDiv.className = 'user-item' + (currentChat && currentChat.id === 'saved' ? ' active' : '');
     savedDiv.innerHTML = `
-      <div class="avatar" style="background: linear-gradient(135deg, #f5af19, #f12711);">⭐</div>
+      <div class="avatar saved-avatar" style="background: linear-gradient(135deg, #f5af19, #f12711);">⭐</div>
       <div>
         <div class="name">${t('saved')}</div>
         <div class="username">${t('savedHint')}</div>
@@ -967,6 +989,7 @@ function sendMessage() {
     return;
   }
   
+  if (!socket) return;
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
     loadChats();
@@ -1010,7 +1033,7 @@ async function openSettings() {
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
       const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-      document.getElementById('settings-created').textContent = 'В SakhaChat с ' + formatted;
+      document.getElementById('settings-created').textContent = t('memberSince').replace('{date}', formatted);
     }
   } catch (e) { document.getElementById('settings-error').textContent = t('errorNetwork'); }
 }
@@ -1077,6 +1100,7 @@ async function openViewProfile() {
   
   const bioEl = document.getElementById('view-profile-bio');
   bioEl.textContent = '';
+  bioEl.removeAttribute('data-i18n'); // страховка: язык не должен затирать bio
   
   const dateEl = document.getElementById('view-profile-chat-date');
   dateEl.textContent = '';
@@ -1091,13 +1115,13 @@ async function openViewProfile() {
     if (data.createdAt) {
       const d = new Date(data.createdAt.replace(' ', 'T') + 'Z');
       const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-      document.getElementById('view-profile-created').textContent = 'В SakhaChat с ' + formatted;
+      document.getElementById('view-profile-created').textContent = t('memberSince').replace('{date}', formatted);
     }
 
     if (data.firstMessageAt) {
       const d = new Date(data.firstMessageAt.replace(' ', 'T') + 'Z');
       const formatted = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-      dateEl.textContent = '💬 Общаетесь с ' + formatted;
+      dateEl.textContent = t('chattingSince').replace('{date}', formatted);
     }
   } catch (e) {
     bioEl.textContent = t('errorNetwork');

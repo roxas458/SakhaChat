@@ -161,7 +161,7 @@ app.get('/api/chats', auth, (req, res) => {
 app.get('/api/messages/:userId', auth, (req, res) => {
   const otherId = parseInt(req.params.userId, 10);
   const msgs = db.prepare(`
-    SELECT * FROM messages
+    SELECT id, sender_id, receiver_id, text, created_at FROM messages
     WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
     ORDER BY created_at ASC LIMIT 200
   `).all(req.userId, otherId, otherId, req.userId);
@@ -173,7 +173,7 @@ app.get('/api/messages/:userId', auth, (req, res) => {
 // Получить избранные сообщения (заметки себе)
 app.get('/api/saved-messages', auth, (req, res) => {
   const msgs = db.prepare(`
-    SELECT * FROM messages
+    SELECT id, sender_id, receiver_id, text, created_at FROM messages
     WHERE sender_id = ? AND receiver_id = ?
     ORDER BY created_at ASC LIMIT 200
   `).all(req.userId, req.userId);
@@ -184,12 +184,13 @@ app.get('/api/saved-messages', auth, (req, res) => {
 app.post('/api/messages', auth, (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
+  if (text.trim().length > 5000) return res.status(400).json({ error: 'Слишком длинное сообщение' });
 
   const result = db.prepare(
     'INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)'
   ).run(req.userId, req.userId, text.trim());
 
-  const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
+  const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
   res.json(msg);
 });
 
@@ -241,8 +242,9 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
+    if (text.trim().length > 5000) return; // защита от мегабайтных сообщений
     const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)').run(socket.userId, to, text.trim());
-    const msg = toNum(db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid));
+    const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
     const receiverSocket = onlineUsers.get(to);
     if (receiverSocket) io.to(receiverSocket).emit('new_message', msg);
     if (callback) callback(msg);

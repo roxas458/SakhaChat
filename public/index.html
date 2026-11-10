@@ -62,7 +62,7 @@
       <div class="chat" id="chat" style="display:none">
         <div class="chat-header">
           <button class="back-btn" onclick="closeChatOnMobile()" title="Назад" data-i18n-title="backTitle">←</button>
-          <div class="avatar" id="chat-avatar" onclick="openViewProfile()" title="Открыть профиль" style="cursor:pointer"></div>
+          <div class="avatar" id="chat-avatar" onclick="openViewProfile()" title="Открыть профиль"></div>
           <div class="chat-header-info">
             <div class="name" id="chat-name"></div>
             <div class="status" id="chat-status"></div>
@@ -114,7 +114,7 @@
 
         <label class="field-label" data-i18n="status">Статус</label>
         <input type="text" id="settings-status" class="modal-input" placeholder="Например: На обеде" maxlength="30" data-i18n-placeholder="statusPlaceholder">
-        <div class="status-presets" id="status-presets">
+        <div class="status-presets">
           <button type="button" class="status-preset" onclick="setStatusPreset('😴 Сплю')">😴 Сплю</button>
           <button type="button" class="status-preset" onclick="setStatusPreset('🍔 На обеде')">🍔 На обеде</button>
           <button type="button" class="status-preset" onclick="setStatusPreset('🚫 Не беспокоить')">🚫 Не беспокоить</button>
@@ -190,7 +190,7 @@
           </div>
         </div>
         <label class="field-label" data-i18n="bio">О себе</label>
-        <div class="bio-box" id="view-profile-bio" data-i18n="noBio">Пользователь ничего не рассказал о себе.</div>
+        <div class="bio-box" id="view-profile-bio">Пользователь ничего не рассказал о себе.</div>
         
         <!-- Блок с датой знакомства -->
         <div id="view-profile-chat-date"></div>

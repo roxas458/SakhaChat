@@ -12,6 +12,12 @@
 <body>
   <!-- Auth screen -->
   <div id="auth-screen" class="screen">
+    <!-- Переключатель языка (до входа/регистрации) -->
+    <div class="auth-lang" id="auth-lang">
+      <button type="button" class="auth-lang-btn" data-lang="ru" onclick="setAuthLang('ru')">RU</button>
+      <button type="button" class="auth-lang-btn" data-lang="sah" onclick="setAuthLang('sah')">SAH</button>
+    </div>
+
     <div class="auth-box">
       <h1>🪶 SakhaChat</h1>
       <p class="tagline" data-i18n="tagline">Кэпсэтиэх, доҕоттор!</p>
@@ -51,7 +57,10 @@
           <button class="logout" onclick="logout()" title="Выйти" data-i18n-title="logoutTitle">⎋</button>
         </div>
       </div>
-      <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)" data-i18n-placeholder="searchPlaceholder">
+      <div class="search-row">
+        <input type="text" class="search" id="search" placeholder="Поиск пользователей..." oninput="searchUsers(this.value)" data-i18n-placeholder="searchPlaceholder">
+        <button class="new-group-btn" onclick="openCreateGroup()" title="Создать группу" data-i18n-title="createGroupTitle">＋</button>
+      </div>
       <div class="user-list" id="user-list"></div>
     </aside>
     <main class="chat-area">
@@ -67,6 +76,7 @@
             <div class="name" id="chat-name"></div>
             <div class="status" id="chat-status"></div>
           </div>
+          <button id="group-info-btn" type="button" title="О группе" onclick="openGroupInfo()" style="display:none;">ℹ️</button>
           <button id="stats-toggle-btn" type="button" title="Статистика" onclick="openChatStats()">📊</button>
           <button id="search-toggle-btn" type="button" title="Поиск" onclick="toggleMessageSearch()">🔍</button>
 
@@ -237,6 +247,56 @@
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeChatStats()" data-i18n="close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка создания группы -->
+  <div id="create-group-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="createGroupTitle">Создать группу</h2>
+        <button class="modal-close" onclick="closeCreateGroup()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" data-i18n="groupName">Название группы</label>
+        <input type="text" id="group-name-input" class="modal-input" placeholder="Например: Друзья" maxlength="40" data-i18n-placeholder="groupNamePlaceholder">
+
+        <label class="field-label" data-i18n="groupMembers">Участники</label>
+        <p class="field-hint" data-i18n="groupMembersHint">Выберите, с кем уже общались (до 20 человек)</p>
+        <div id="group-members-list" class="group-members-list"></div>
+
+        <p class="error" id="create-group-error"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeCreateGroup()" data-i18n="cancel">Отмена</button>
+        <button class="btn-primary" onclick="createGroup()" data-i18n="createGroupBtn">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка «О группе» -->
+  <div id="group-info-modal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="groupInfoTitle">О группе</h2>
+        <button class="modal-close" onclick="closeGroupInfo()" title="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="profile-section">
+          <div class="avatar avatar-large" id="group-info-avatar">👥</div>
+          <div class="profile-info">
+            <div class="name" id="group-info-name"></div>
+            <div class="username" id="group-info-members-count"></div>
+          </div>
+        </div>
+        <label class="field-label" data-i18n="groupMembers">Участники</label>
+        <div id="group-info-members-list" class="group-members-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeGroupInfo()" data-i18n="close">Закрыть</button>
+        <button class="btn-secondary" id="group-leave-btn" onclick="leaveGroup()" data-i18n="leaveGroup" style="display:none;">Выйти</button>
+        <button class="btn-primary" id="group-delete-btn" onclick="deleteGroup()" data-i18n="deleteGroup" style="display:none;">Удалить</button>
       </div>
     </div>
   </div>

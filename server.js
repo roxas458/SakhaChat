@@ -134,7 +134,7 @@ app.get('/api/users', auth, (req, res) => {
   res.json(toNumArr(users).map(u => ({ id: u.id, username: u.username, displayName: u.display_name })));
 });
 
-// Список моих чатов
+// Список моих чатов (личные)
 app.get('/api/chats', auth, (req, res) => {
   const chats = db.prepare(`
     SELECT 
@@ -157,7 +157,7 @@ app.get('/api/chats', auth, (req, res) => {
   })));
 });
 
-// Сообщения
+// Сообщения (личные)
 app.get('/api/messages/:userId', auth, (req, res) => {
   const otherId = parseInt(req.params.userId, 10);
   const msgs = db.prepare(`
@@ -170,7 +170,6 @@ app.get('/api/messages/:userId', auth, (req, res) => {
 
 // ============ ИЗБРАННОЕ ============
 
-// Получить избранные сообщения (заметки себе)
 app.get('/api/saved-messages', auth, (req, res) => {
   const msgs = db.prepare(`
     SELECT id, sender_id, receiver_id, text, created_at FROM messages
@@ -180,7 +179,6 @@ app.get('/api/saved-messages', auth, (req, res) => {
   res.json(toNumArr(msgs));
 });
 
-// Отправить сообщение в Избранное (себе)
 app.post('/api/messages', auth, (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Empty text' });
@@ -194,6 +192,178 @@ app.post('/api/messages', auth, (req, res) => {
   res.json(msg);
 });
 
+// ============ ГРУППОВЫЕ ЧАТЫ ============
+
+const MAX_GROUP_MEMBERS = 21; // 20 приглашённых + создатель
+
+// Проверка: является ли пользователь участником группы
+function isGroupMember(groupId, userId) {
+  const row = db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  return !!row;
+}
+
+// Создать группу
+app.post('/api/groups', auth, (req, res) => {
+  const { name, memberIds } = req.body || {};
+  const groupName = String(name || '').trim();
+  if (!groupName) return res.status(400).json({ error: 'Введите название группы' });
+  if (groupName.length > 40) return res.status(400).json({ error: 'Название не более 40 символов' });
+
+  if (!Array.isArray(memberIds)) return res.status(400).json({ error: 'memberIds должен быть массивом' });
+
+  // Очищаем: только числа, без создателя, без дублей
+  const uniqueIds = [...new Set(
+    memberIds
+      .map(id => parseInt(id, 10))
+      .filter(id => Number.isFinite(id) && id !== req.userId)
+  )];
+
+  if (uniqueIds.length === 0) return res.status(400).json({ error: 'Добавьте хотя бы одного участника' });
+  if (uniqueIds.length + 1 > MAX_GROUP_MEMBERS) return res.status(400).json({ error: `Максимум ${MAX_GROUP_MEMBERS - 1} участников + вы` });
+
+  // Проверяем, что все пользователи существуют
+  const placeholders = uniqueIds.map(() => '?').join(',');
+  const existing = db.prepare(`SELECT id FROM users WHERE id IN (${placeholders})`).all(...uniqueIds);
+  if (existing.length !== uniqueIds.length) return res.status(400).json({ error: 'Некоторые пользователи не найдены' });
+
+  try {
+    const result = db.prepare('INSERT INTO groups (name, creator_id) VALUES (?, ?)').run(groupName, req.userId);
+    const groupId = Number(result.lastInsertRowid);
+
+    // Создатель + участники
+    const insertMember = db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)');
+    insertMember.run(groupId, req.userId);
+    for (const uid of uniqueIds) insertMember.run(groupId, uid);
+
+    res.json({ id: groupId, name: groupName, creatorId: req.userId, memberIds: [req.userId, ...uniqueIds] });
+  } catch (e) {
+    res.status(500).json({ error: 'Не удалось создать группу' });
+  }
+});
+
+// Список моих групп
+app.get('/api/groups', auth, (req, res) => {
+  const groups = db.prepare(`
+    SELECT 
+      g.id, g.name, g.creator_id, g.created_at,
+      (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS members_count,
+      (SELECT MAX(created_at) FROM group_messages WHERE group_id = g.id) AS last_message_time
+    FROM groups g
+    JOIN group_members gm ON gm.group_id = g.id
+    WHERE gm.user_id = ?
+    ORDER BY COALESCE(last_message_time, g.created_at) DESC
+  `).all(req.userId);
+
+  res.json(toNumArr(groups).map(g => ({
+    id: g.id,
+    name: g.name,
+    creatorId: g.creator_id,
+    createdAt: g.created_at,
+    membersCount: g.members_count,
+    lastMessageTime: g.last_message_time
+  })));
+});
+
+// Инфо о группе + участники
+app.get('/api/groups/:id', auth, (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  if (!isGroupMember(groupId, req.userId)) return res.status(403).json({ error: 'Нет доступа' });
+
+  const group = db.prepare('SELECT id, name, creator_id, created_at FROM groups WHERE id = ?').get(groupId);
+  if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+
+  const members = db.prepare(`
+    SELECT u.id, u.username, u.display_name
+    FROM users u
+    JOIN group_members gm ON gm.user_id = u.id
+    WHERE gm.group_id = ?
+    ORDER BY u.display_name COLLATE NOCASE
+  `).all(groupId);
+
+  res.json({
+    id: Number(group.id),
+    name: group.name,
+    creatorId: Number(group.creator_id),
+    createdAt: group.created_at,
+    members: toNumArr(members).map(m => ({ id: m.id, username: m.username, displayName: m.display_name }))
+  });
+});
+
+// История сообщений группы
+app.get('/api/groups/:id/messages', auth, (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  if (!isGroupMember(groupId, req.userId)) return res.status(403).json({ error: 'Нет доступа' });
+
+  const msgs = db.prepare(`
+    SELECT 
+      gm.id, gm.group_id, gm.sender_id, gm.text, gm.created_at,
+      u.display_name AS sender_name
+    FROM group_messages gm
+    JOIN users u ON u.id = gm.sender_id
+    WHERE gm.group_id = ?
+    ORDER BY gm.created_at ASC LIMIT 200
+  `).all(groupId);
+
+  res.json(toNumArr(msgs));
+});
+
+// Добавить участника (только создатель)
+app.post('/api/groups/:id/members', auth, (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  const { userId } = req.body || {};
+  const newUserId = parseInt(userId, 10);
+
+  const group = db.prepare('SELECT creator_id FROM groups WHERE id = ?').get(groupId);
+  if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (Number(group.creator_id) !== req.userId) return res.status(403).json({ error: 'Только создатель может добавлять' });
+
+  if (!Number.isFinite(newUserId)) return res.status(400).json({ error: 'Некорректный userId' });
+  if (isGroupMember(groupId, newUserId)) return res.status(400).json({ error: 'Уже в группе' });
+
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(newUserId);
+  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+  const count = db.prepare('SELECT COUNT(*) AS c FROM group_members WHERE group_id = ?').get(groupId);
+  if (Number(count.c) >= MAX_GROUP_MEMBERS) return res.status(400).json({ error: `Максимум ${MAX_GROUP_MEMBERS} участников` });
+
+  db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupId, newUserId);
+  res.json({ ok: true });
+});
+
+// Удалить участника / выйти (создатель может любого, участник — только себя)
+app.delete('/api/groups/:id/members/:userId', auth, (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  const targetId = parseInt(req.params.userId, 10);
+
+  const group = db.prepare('SELECT creator_id FROM groups WHERE id = ?').get(groupId);
+  if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+
+  const isCreator = Number(group.creator_id) === req.userId;
+  const isSelf = targetId === req.userId;
+
+  if (!isCreator && !isSelf) return res.status(403).json({ error: 'Нет прав' });
+  if (!isGroupMember(groupId, targetId)) return res.status(404).json({ error: 'Не участник' });
+
+  // Создатель не может выйти сам — только удалить группу
+  if (isSelf && isCreator) return res.status(400).json({ error: 'Создатель не может выйти. Удалите группу.' });
+
+  db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, targetId);
+  res.json({ ok: true });
+});
+
+// Удалить группу (только создатель)
+app.delete('/api/groups/:id', auth, (req, res) => {
+  const groupId = parseInt(req.params.id, 10);
+  const group = db.prepare('SELECT creator_id FROM groups WHERE id = ?').get(groupId);
+  if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+  if (Number(group.creator_id) !== req.userId) return res.status(403).json({ error: 'Только создатель может удалить' });
+
+  db.prepare('DELETE FROM group_messages WHERE group_id = ?').run(groupId);
+  db.prepare('DELETE FROM group_members WHERE group_id = ?').run(groupId);
+  db.prepare('DELETE FROM groups WHERE id = ?').run(groupId);
+  res.json({ ok: true });
+});
+
 // Socket.io
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
@@ -204,33 +374,40 @@ io.use((socket, next) => {
 });
 
 const onlineUsers = new Map();
-const typingTimers = new Map(); // userId:toUserId -> setTimeout
+const typingTimers = new Map();
 
 io.on('connection', (socket) => {
   onlineUsers.set(socket.userId, socket.id);
   
-  // Обновляем last_seen при входе
   db.prepare('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(socket.userId);
-  
   io.emit('online', Array.from(onlineUsers.keys()));
 
-  // «Печатает...»
+  // Подписываем на все группы пользователя
+  const userGroups = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').all(socket.userId);
+  for (const g of userGroups) {
+    socket.join('group_' + Number(g.group_id));
+  }
+
+  // Клиент может попросить подписаться на новую группу (после создания)
+  socket.on('join_group', ({ groupId }) => {
+    const gid = parseInt(groupId, 10);
+    if (!Number.isFinite(gid)) return;
+    if (isGroupMember(gid, socket.userId)) socket.join('group_' + gid);
+  });
+
+  // «Печатает...» (личные)
   socket.on('typing', ({ to, isTyping }) => {
     if (!to) return;
     const receiverSocket = onlineUsers.get(to);
     if (!receiverSocket) return;
 
-    // Отправляем получателю
     io.to(receiverSocket).emit('user_typing', { from: socket.userId, isTyping: !!isTyping });
 
-    // Сбрасываем старый таймаут
     const key = socket.userId + ':' + to;
     if (typingTimers.has(key)) {
       clearTimeout(typingTimers.get(key));
       typingTimers.delete(key);
     }
-
-    // Если isTyping=true — ставим таймаут на 3 сек (защита от залипания)
     if (isTyping) {
       const timer = setTimeout(() => {
         io.to(receiverSocket).emit('user_typing', { from: socket.userId, isTyping: false });
@@ -240,9 +417,10 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Личное сообщение
   socket.on('send_message', ({ to, text }, callback) => {
     if (!to || !text || !text.trim()) return;
-    if (text.trim().length > 5000) return; // защита от мегабайтных сообщений
+    if (text.trim().length > 5000) return;
     const result = db.prepare('INSERT INTO messages (sender_id, receiver_id, text) VALUES (?, ?, ?)').run(socket.userId, to, text.trim());
     const msg = toNum(db.prepare('SELECT id, sender_id, receiver_id, text, created_at FROM messages WHERE id = ?').get(result.lastInsertRowid));
     const receiverSocket = onlineUsers.get(to);
@@ -250,10 +428,28 @@ io.on('connection', (socket) => {
     if (callback) callback(msg);
   });
 
+  // Групповое сообщение
+  socket.on('send_group_message', ({ groupId, text }, callback) => {
+    const gid = parseInt(groupId, 10);
+    if (!Number.isFinite(gid) || !text || !text.trim()) return;
+    if (text.trim().length > 5000) return;
+    if (!isGroupMember(gid, socket.userId)) return;
+
+    const result = db.prepare('INSERT INTO group_messages (group_id, sender_id, text) VALUES (?, ?, ?)').run(gid, socket.userId, text.trim());
+    const row = db.prepare(`
+      SELECT gm.id, gm.group_id, gm.sender_id, gm.text, gm.created_at, u.display_name AS sender_name
+      FROM group_messages gm JOIN users u ON u.id = gm.sender_id
+      WHERE gm.id = ?
+    `).get(result.lastInsertRowid);
+    const msg = toNum(row);
+
+    io.to('group_' + gid).emit('new_group_message', msg);
+    if (callback) callback(msg);
+  });
+
   socket.on('disconnect', () => {
     onlineUsers.delete(socket.userId);
 
-    // Чистим все таймеры этого пользователя
     for (const [key, timer] of typingTimers.entries()) {
       if (key.startsWith(socket.userId + ':')) {
         clearTimeout(timer);
@@ -261,9 +457,7 @@ io.on('connection', (socket) => {
       }
     }
     
-    // Обновляем last_seen при выходе
     db.prepare('UPDATE users SET last_seen = CURRENT_TIMESTAMP WHERE id = ?').run(socket.userId);
-    
     io.emit('online', Array.from(onlineUsers.keys()));
   });
 });

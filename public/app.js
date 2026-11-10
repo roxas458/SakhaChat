@@ -2,8 +2,10 @@ let token = localStorage.getItem('sakhachat_token');
 let me = JSON.parse(localStorage.getItem('sakhachat_user') || 'null');
 let socket = null;
 let currentChat = null;
+let currentGroup = null;
 let onlineUsers = new Set();
 let usersCache = [];
+let groupsCache = [];
 
 // ==================== ПОИСК ПО СООБЩЕНИЯМ ====================
 let searchMatches = [];
@@ -18,6 +20,9 @@ let peerTypingUserId = null;
 
 // ==================== СТАТИСТИКА ЧАТА ====================
 let chatStatsOpen = false;
+
+// ==================== ВЫБОР УЧАСТНИКОВ ПРИ СОЗДАНИИ ГРУППЫ ====================
+let groupPickerSelected = new Set();
 
 // ==================== СЛОВАРЬ ПЕРЕВОДОВ ====================
 const i18n = {
@@ -106,7 +111,29 @@ const i18n = {
     nextTitle: 'Следующее',
     closeTitle: 'Закрыть',
     memberSince: 'В SakhaChat с {date}',
-    chattingSince: '💬 Общаетесь с {date}'
+    chattingSince: '💬 Общаетесь с {date}',
+    // ==================== ГРУППЫ ====================
+    groups: 'Группы',
+    noGroups: 'Нет групп',
+    createGroupTitle: 'Создать группу',
+    groupName: 'Название группы',
+    groupNamePlaceholder: 'Например: Друзья',
+    groupMembers: 'Участники',
+    groupMembersHint: 'Выберите, с кем уже общались (до 20 человек)',
+    createGroupBtn: 'Создать',
+    groupInfoTitle: 'О группе',
+    leaveGroup: 'Выйти из группы',
+    deleteGroup: 'Удалить группу',
+    groupMembersCount: 'Участников: {n}',
+    groupCreated: 'Группа создана!',
+    groupCreateError: 'Не удалось создать группу',
+    groupMinMembers: 'Выберите хотя бы одного участника',
+    groupLeaveConfirm: 'Выйти из группы?',
+    groupDeleteConfirm: 'Удалить группу для всех? Это действие нельзя отменить.',
+    groupLeft: 'Вы вышли из группы',
+    groupDeleted: 'Группа удалена',
+    groupError: 'Ошибка',
+    groupNoMembers: 'Нет доступных участников. Начните личный чат с кем-нибудь!'
   },
   sah: {
     tagline: 'Кэпсэтиэх, доҕоттор!',
@@ -193,7 +220,29 @@ const i18n = {
     nextTitle: 'Кэнники',
     closeTitle: 'Салҕаа',
     memberSince: 'SakhaChat-ка {date} кыттан',
-    chattingSince: '💬 {date} кыттан кэпсэтэҕит'
+    chattingSince: '💬 {date} кыттан кэпсэтэҕит',
+    // ==================== ГРУППЫ ====================
+    groups: 'Бөлөхтөр',
+    noGroups: 'Бөлөх суох',
+    createGroupTitle: 'Бөлөх оҥоруу',
+    groupName: 'Бөлөх аата',
+    groupNamePlaceholder: 'Холобур: Доҕоттор',
+    groupMembers: 'Кыттааччылар',
+    groupMembersHint: 'Кимниин кэпсэппиккиттэн тал (20 киһиэхэ дылы)',
+    createGroupBtn: 'Оҥор',
+    groupInfoTitle: 'Бөлөх туhунан',
+    leaveGroup: 'Бөлөхтөн таҕыс',
+    deleteGroup: 'Бөлөҕү сот',
+    groupMembersCount: 'Кыттааччы: {n}',
+    groupCreated: 'Бөлөх оҥоһулунна!',
+    groupCreateError: 'Бөлөҕү оҥорор кыаллыбата',
+    groupMinMembers: 'Кырата биир кыттааччыны тал',
+    groupLeaveConfirm: 'Бөлөхтөн таҕыстаххына?',
+    groupDeleteConfirm: 'Бөлөҕү барытыгар сотуоххун? Бу көннөрүллүбэт.',
+    groupLeft: 'Эн бөлөхтөн таҕыстыҥ',
+    groupDeleted: 'Бөлөх сотулунна',
+    groupError: 'Алҕас',
+    groupNoMembers: 'Кыттааччы суох. Бастаан кимниин эмит кэпсэт!'
   }
 };
 
@@ -220,6 +269,11 @@ function applyLanguage() {
   const langSelect = document.getElementById('lang-select');
   if (langSelect) langSelect.value = currentLang;
 
+  // Подсветка активной кнопки языка на экране входа
+  document.querySelectorAll('.auth-lang-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.lang === currentLang);
+  });
+
   renderUserList();
   updateStatus();
   
@@ -227,6 +281,13 @@ function applyLanguage() {
 }
 
 function changeLanguage(lang) {
+  currentLang = lang;
+  localStorage.setItem('sakhachat_lang', lang);
+  applyLanguage();
+}
+
+// Переключатель языка на экране входа/регистрации
+function setAuthLang(lang) {
   currentLang = lang;
   localStorage.setItem('sakhachat_lang', lang);
   applyLanguage();
@@ -247,11 +308,10 @@ function setStatusPreset(text) {
 
 // ==================== СТАТИСТИКА ЧАТА ====================
 function openChatStats() {
-  if (!currentChat || currentChat.id === 'saved') return;
+  if (!currentChat || currentChat.id === 'saved' || currentGroup) return;
 
   const messages = Array.from(document.querySelectorAll('#messages .message'));
   if (messages.length === 0) {
-    // Пустой чат — показываем нули
     document.getElementById('stats-total').textContent = '0';
     document.getElementById('stats-first').textContent = '—';
     document.getElementById('stats-avg').textContent = '0';
@@ -263,10 +323,8 @@ function openChatStats() {
     return;
   }
 
-  // --- Всего сообщений ---
   const total = messages.length;
 
-  // --- Первое сообщение ---
   const firstMsg = messages[0];
   const firstDate = firstMsg.dataset.createdAt || '';
   let firstText = '—';
@@ -275,15 +333,13 @@ function openChatStats() {
     firstText = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
-  // --- Средняя длина ---
   let sumLen = 0;
   messages.forEach(m => {
     sumLen += (m.dataset.originalText || '').length;
   });
   const avgLen = Math.round(sumLen / total);
 
-  // --- Кто больше пишет ---
-  const counts = new Map(); // senderName -> count
+  const counts = new Map();
   messages.forEach(m => {
     const isMine = m.classList.contains('mine');
     const name = isMine ? (me.displayName || 'Я') : (currentChat.displayName || '—');
@@ -293,7 +349,6 @@ function openChatStats() {
   const countsArr = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
   const maxCount = countsArr.length > 0 ? countsArr[0][1] : 1;
 
-  // --- Самое длинное сообщение ---
   let longestMsg = messages[0];
   let longestLen = 0;
   messages.forEach(m => {
@@ -307,7 +362,6 @@ function openChatStats() {
   const longestAuthor = longestIsMine ? (me.displayName || 'Я') : (currentChat.displayName || '—');
   const longestText = longestMsg.dataset.originalText || '';
 
-  // --- Заполняем модалку ---
   document.getElementById('stats-total').textContent = total;
   document.getElementById('stats-first').textContent = firstText;
   document.getElementById('stats-avg').textContent = avgLen;
@@ -341,7 +395,7 @@ function closeChatStats() {
 // ==================== «ПЕЧАТАЕТ...» ====================
 function handleInputTyping() {
   const input = document.getElementById('message-input');
-  if (!input || !socket || !currentChat || currentChat.id === 'saved') return;
+  if (!input || !socket || !currentChat || currentChat.id === 'saved' || currentGroup) return;
 
   const hasText = input.value.trim().length > 0;
 
@@ -623,6 +677,7 @@ function initApp() {
   applyLanguage();
   connectSocket();
   loadChats();
+  loadGroups();
 }
 
 function connectSocket() {
@@ -647,8 +702,16 @@ function connectSocket() {
     }
   });
 
+  socket.on('new_group_message', (msg) => {
+    if (currentGroup && msg.group_id === currentGroup.id) {
+      appendMessage(msg, true);
+    } else {
+      markAsUnread('group_' + msg.group_id);
+      loadGroups();
+    }
+  });
+
   socket.on('connect_error', () => {
-    // Чистим только токен и пользователя, не трогаем язык/тему/непрочитанные
     localStorage.removeItem('sakhachat_token');
     localStorage.removeItem('sakhachat_user');
     location.reload();
@@ -661,7 +724,7 @@ async function loadChats() {
   if (!r.ok) return;
   usersCache = await r.json();
   
-  if (currentChat && currentChat.id !== 'saved') {
+  if (currentChat && currentChat.id !== 'saved' && !currentGroup) {
     const updated = usersCache.find(u => u.id === currentChat.id);
     if (updated) {
       currentChat.lastSeen = updated.lastSeen;
@@ -669,6 +732,13 @@ async function loadChats() {
     }
     updateStatus();
   }
+  renderUserList();
+}
+
+async function loadGroups() {
+  const r = await fetch('/api/groups', { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) return;
+  groupsCache = await r.json();
   renderUserList();
 }
 
@@ -684,14 +754,15 @@ async function searchUsers(q) {
 let unreadChats = JSON.parse(localStorage.getItem('sakhachat_unread') || '{}');
 
 function markAsRead(userId) {
-  if (unreadChats[userId]) {
-    delete unreadChats[userId];
+  const key = String(userId);
+  if (unreadChats[key]) {
+    delete unreadChats[key];
     localStorage.setItem('sakhachat_unread', JSON.stringify(unreadChats));
   }
 }
 
 function markAsUnread(userId) {
-  unreadChats[userId] = true;
+  unreadChats[String(userId)] = true;
   localStorage.setItem('sakhachat_unread', JSON.stringify(unreadChats));
 }
 
@@ -706,6 +777,36 @@ function renderUserList() {
   const textColor = isDark ? '#b0b3b8' : '#888';
 
   if (!isSearching) {
+    // ===== ГРУППЫ =====
+    if (groupsCache.length > 0) {
+      const groupsHeader = document.createElement('div');
+      groupsHeader.style.cssText = `font-size: 11px; font-weight: 700; color: ${textColor}; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px 4px;`;
+      groupsHeader.textContent = t('groups');
+      list.appendChild(groupsHeader);
+
+      for (const g of groupsCache) {
+        const isActive = currentGroup && currentGroup.id === g.id;
+        const isUnread = unreadChats['group_' + g.id] && !isActive;
+        const div = document.createElement('div');
+        div.className = 'user-item' + (isActive ? ' active' : '');
+        div.innerHTML = `
+          <div class="avatar group-avatar">👥</div>
+          <div>
+            <div class="name" style="${isUnread ? 'font-weight: 800;' : ''}">${escapeHtml(g.name)}</div>
+            <div class="username">${t('groupMembersCount').replace('{n}', g.membersCount)}</div>
+          </div>
+          ${isUnread ? '<span style="margin-left: auto; background: #667eea; color: white; border-radius: 50%; width: 10px; height: 10px; display: block;"></span>' : ''}
+        `;
+        div.onclick = () => openGroupChat(g);
+        list.appendChild(div);
+      }
+
+      const divider0 = document.createElement('div');
+      divider0.style.cssText = `height: 1px; background: ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'}; margin: 6px 8px;`;
+      list.appendChild(divider0);
+    }
+
+    // ===== ИЗБРАННОЕ =====
     const savedDiv = document.createElement('div');
     savedDiv.className = 'user-item' + (currentChat && currentChat.id === 'saved' ? ' active' : '');
     savedDiv.innerHTML = `
@@ -748,7 +849,7 @@ function renderUserList() {
     const isOnline = onlineUsers.has(u.id);
     const isUnread = unreadChats[u.id] && !(currentChat && currentChat.id === u.id);
     const div = document.createElement('div');
-    div.className = 'user-item' + (currentChat && currentChat.id === u.id ? ' active' : '');
+    div.className = 'user-item' + (currentChat && currentChat.id === u.id && !currentGroup ? ' active' : '');
     div.innerHTML = `
       <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}${isOnline ? '<span class="online-dot"></span>' : ''}</div>
       <div>
@@ -769,6 +870,7 @@ async function openChat(user) {
   if (chatStatsOpen) closeChatStats();
   stopTyping();
   peerTypingUserId = null;
+  currentGroup = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
@@ -780,9 +882,17 @@ async function openChat(user) {
 
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
-  document.getElementById('chat-avatar').textContent = user.displayName[0].toUpperCase();
-  document.getElementById('chat-avatar').style.background = '';
+  const av = document.getElementById('chat-avatar');
+  av.textContent = user.displayName[0].toUpperCase();
+  av.style.background = '';
+  av.classList.remove('group-avatar');
   document.getElementById('chat-name').textContent = user.displayName;
+
+  // Показываем 📊 и 🔍, скрываем ℹ️
+  document.getElementById('stats-toggle-btn').style.display = '';
+  document.getElementById('search-toggle-btn').style.display = '';
+  document.getElementById('group-info-btn').style.display = 'none';
+
   updateStatus();
   loadChats();
 
@@ -808,6 +918,7 @@ async function openSavedChat() {
   if (chatStatsOpen) closeChatStats();
   stopTyping();
   peerTypingUserId = null;
+  currentGroup = null;
   if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
   if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
 
@@ -818,11 +929,17 @@ async function openSavedChat() {
 
   document.getElementById('empty-chat').style.display = 'none';
   document.getElementById('chat').style.display = 'flex';
-  document.getElementById('chat-avatar').textContent = '⭐';
-  document.getElementById('chat-avatar').style.background = 'linear-gradient(135deg, #f5af19, #f12711)';
+  const av = document.getElementById('chat-avatar');
+  av.textContent = '⭐';
+  av.style.background = 'linear-gradient(135deg, #f5af19, #f12711)';
+  av.classList.remove('group-avatar');
   document.getElementById('chat-name').textContent = t('saved');
   document.getElementById('chat-status').textContent = t('savedOnly');
   document.getElementById('chat-status').className = 'status';
+
+  document.getElementById('stats-toggle-btn').style.display = 'none';
+  document.getElementById('search-toggle-btn').style.display = 'none';
+  document.getElementById('group-info-btn').style.display = 'none';
   
   renderUserList();
 
@@ -841,12 +958,65 @@ async function openSavedChat() {
   if (!isMobile()) document.getElementById('message-input').focus();
 }
 
+// --- Групповой чат ---
+async function openGroupChat(group) {
+  document.getElementById('search').value = '';
+  if (searchOpen) closeMessageSearch();
+  if (chatStatsOpen) closeChatStats();
+  stopTyping();
+  peerTypingUserId = null;
+  if (peerTypingTimeout) { clearTimeout(peerTypingTimeout); peerTypingTimeout = null; }
+  if (isMobile()) document.getElementById('sidebar').classList.add('hidden');
+
+  markAsRead('group_' + group.id);
+  currentChat = null;
+  currentGroup = group;
+
+  const container = document.getElementById('messages');
+  container.innerHTML = '';
+
+  document.getElementById('empty-chat').style.display = 'none';
+  document.getElementById('chat').style.display = 'flex';
+
+  const av = document.getElementById('chat-avatar');
+  av.textContent = '👥';
+  av.style.background = 'linear-gradient(135deg, #43cea2, #185a9d)';
+  av.classList.add('group-avatar');
+
+  document.getElementById('chat-name').textContent = group.name;
+  document.getElementById('chat-status').textContent = t('groupMembersCount').replace('{n}', group.membersCount);
+  document.getElementById('chat-status').className = 'status';
+
+  // Скрываем 📊 и 🔍, показываем ℹ️
+  document.getElementById('stats-toggle-btn').style.display = 'none';
+  document.getElementById('search-toggle-btn').style.display = 'none';
+  document.getElementById('group-info-btn').style.display = '';
+
+  renderUserList();
+
+  try {
+    const r = await fetch('/api/groups/' + group.id + '/messages', { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('Ошибка загрузки');
+    const messages = await r.json();
+
+    container.innerHTML = '';
+    for (const m of messages) appendMessage(m, false);
+    scrollBottom();
+  } catch (e) {
+    container.innerHTML = `<div style="text-align: center; padding: 40px; color: #e53935;">${t('errorNetwork')}</div>`;
+  }
+
+  if (!isMobile()) document.getElementById('message-input').focus();
+}
+
 function closeChatOnMobile() {
   document.getElementById('sidebar').classList.remove('hidden');
   currentChat = null;
+  currentGroup = null;
   document.getElementById('chat').style.display = 'none';
   document.getElementById('empty-chat').style.display = 'flex';
   loadChats();
+  loadGroups();
 }
 
 function formatLastSeen(lastSeenStr) {
@@ -875,6 +1045,11 @@ function formatLastSeen(lastSeenStr) {
 }
 
 function updateStatus() {
+  if (currentGroup) {
+    document.getElementById('chat-status').textContent = t('groupMembersCount').replace('{n}', currentGroup.membersCount);
+    document.getElementById('chat-status').className = 'status';
+    return;
+  }
   if (!currentChat) return;
   if (currentChat.id === 'saved') {
     document.getElementById('chat-status').textContent = t('savedOnly');
@@ -889,7 +1064,6 @@ function updateStatus() {
     return;
   }
 
-  // Собираем: статус (если есть) + «· в сети» / «· был(а)»
   let statusText = '';
   if (currentChat.status) statusText = currentChat.status;
 
@@ -954,8 +1128,14 @@ function appendMessage(msg, animate) {
   if (!animate) div.style.animation = 'none';
   
   const time = new Date(msg.created_at + 'Z').toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+  // Для группового чата — имя автора над сообщением (если не моё)
+  let authorHtml = '';
+  if (currentGroup && !isMine && msg.sender_name) {
+    authorHtml = `<div class="message-author">${escapeHtml(msg.sender_name)}</div>`;
+  }
   
-  div.innerHTML = escapeHtml(msg.text) + `<span class="time">${time}</span>`;
+  div.innerHTML = authorHtml + escapeHtml(msg.text) + `<span class="time">${time}</span>`;
   container.appendChild(div);
   scrollBottom();
 }
@@ -968,10 +1148,24 @@ function scrollBottom() {
 function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
-  if (!text || !currentChat) return;
+  if (!text) return;
+  if (!currentChat && !currentGroup) return;
 
   stopTyping();
 
+  // Групповой чат
+  if (currentGroup) {
+    if (!socket) return;
+    socket.emit('send_group_message', { groupId: currentGroup.id, text }, (msg) => {
+      appendMessage(msg, true);
+      loadGroups();
+    });
+    input.value = '';
+    if (!isMobile()) input.focus();
+    return;
+  }
+
+  // Избранное
   if (currentChat.id === 'saved') {
     fetch('/api/messages', {
       method: 'POST',
@@ -989,6 +1183,7 @@ function sendMessage() {
     return;
   }
   
+  // Личный чат
   if (!socket) return;
   socket.emit('send_message', { to: currentChat.id, text }, (msg) => {
     appendMessage(msg, true);
@@ -996,6 +1191,173 @@ function sendMessage() {
   });
   input.value = '';
   if (!isMobile()) input.focus();
+}
+
+// ==================== СОЗДАНИЕ ГРУППЫ ====================
+function openCreateGroup() {
+  const modal = document.getElementById('create-group-modal');
+  modal.style.display = 'flex';
+  document.getElementById('group-name-input').value = '';
+  document.getElementById('create-group-error').textContent = '';
+  groupPickerSelected = new Set();
+  renderGroupMembersPicker();
+}
+
+function closeCreateGroup() {
+  document.getElementById('create-group-modal').style.display = 'none';
+}
+
+function renderGroupMembersPicker() {
+  const list = document.getElementById('group-members-list');
+  list.innerHTML = '';
+
+  if (!usersCache.length) {
+    list.innerHTML = `<div style="padding: 16px; text-align: center; color: #888; font-size: 13px;">${t('groupNoMembers')}</div>`;
+    return;
+  }
+
+  for (const u of usersCache) {
+    const checked = groupPickerSelected.has(u.id);
+    const div = document.createElement('div');
+    div.className = 'group-member-item' + (checked ? ' checked' : '');
+    div.innerHTML = `
+      <div class="avatar">${escapeHtml(u.displayName[0].toUpperCase())}</div>
+      <div class="group-member-info">
+        <div class="group-member-name">${escapeHtml(u.displayName)}</div>
+        <div class="group-member-username">@${escapeHtml(u.username)}</div>
+      </div>
+      <div class="group-member-check">${checked ? '✓' : ''}</div>
+    `;
+    div.onclick = () => {
+      if (groupPickerSelected.has(u.id)) groupPickerSelected.delete(u.id);
+      else groupPickerSelected.add(u.id);
+      renderGroupMembersPicker();
+    };
+    list.appendChild(div);
+  }
+}
+
+async function createGroup() {
+  const name = document.getElementById('group-name-input').value.trim();
+  const err = document.getElementById('create-group-error');
+  err.textContent = '';
+
+  if (!name) { err.textContent = t('groupName'); return; }
+  if (name.length > 40) { err.textContent = 'Максимум 40 символов'; return; }
+  if (groupPickerSelected.size === 0) { err.textContent = t('groupMinMembers'); return; }
+
+  try {
+    const r = await fetch('/api/groups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ name, memberIds: Array.from(groupPickerSelected) })
+    });
+    const data = await r.json();
+    if (!r.ok) { err.textContent = data.error || t('groupCreateError'); return; }
+
+    closeCreateGroup();
+    await loadGroups();
+
+    // Подписываемся на комнату группы
+    if (socket && data.id) socket.emit('join_group', { groupId: data.id });
+
+    // Открываем созданную группу
+    const created = groupsCache.find(g => g.id === data.id);
+    if (created) openGroupChat(created);
+  } catch (e) {
+    err.textContent = t('errorNetwork');
+  }
+}
+
+// ==================== ИНФО О ГРУППЕ ====================
+async function openGroupInfo() {
+  if (!currentGroup) return;
+  const modal = document.getElementById('group-info-modal');
+  modal.style.display = 'flex';
+
+  document.getElementById('group-info-name').textContent = currentGroup.name;
+  document.getElementById('group-info-members-count').textContent = t('groupMembersCount').replace('{n}', currentGroup.membersCount);
+  document.getElementById('group-info-members-list').innerHTML = '';
+
+  // Кнопки: «Выйти» — всем, «Удалить» — только создателю
+  document.getElementById('group-leave-btn').style.display = '';
+  document.getElementById('group-delete-btn').style.display = (currentGroup.creatorId === me.id) ? '' : 'none';
+
+  try {
+    const r = await fetch('/api/groups/' + currentGroup.id, { headers: { Authorization: 'Bearer ' + token } });
+    const data = await r.json();
+    if (!r.ok) throw new Error('Ошибка');
+
+    document.getElementById('group-info-members-count').textContent = t('groupMembersCount').replace('{n}', data.members.length);
+
+    const list = document.getElementById('group-info-members-list');
+    for (const m of data.members) {
+      const div = document.createElement('div');
+      div.className = 'group-member-item';
+      div.innerHTML = `
+        <div class="avatar">${escapeHtml(m.displayName[0].toUpperCase())}</div>
+        <div class="group-member-info">
+          <div class="group-member-name">${escapeHtml(m.displayName)}${m.id === me.id ? ' (вы)' : ''}</div>
+          <div class="group-member-username">@${escapeHtml(m.username)}</div>
+        </div>
+      `;
+      list.appendChild(div);
+    }
+  } catch (e) {
+    document.getElementById('group-info-members-list').innerHTML = `<div style="padding: 16px; text-align: center; color: #e53935;">${t('errorNetwork')}</div>`;
+  }
+}
+
+function closeGroupInfo() {
+  document.getElementById('group-info-modal').style.display = 'none';
+}
+
+async function leaveGroup() {
+  if (!currentGroup) return;
+  if (!confirm(t('groupLeaveConfirm'))) return;
+
+  try {
+    const r = await fetch('/api/groups/' + currentGroup.id + '/members/' + me.id, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) {
+      const data = await r.json();
+      alert(data.error || t('groupError'));
+      return;
+    }
+    closeGroupInfo();
+    closeChatOnMobile();
+    currentGroup = null;
+    await loadGroups();
+    alert(t('groupLeft'));
+  } catch (e) {
+    alert(t('errorNetwork'));
+  }
+}
+
+async function deleteGroup() {
+  if (!currentGroup) return;
+  if (!confirm(t('groupDeleteConfirm'))) return;
+
+  try {
+    const r = await fetch('/api/groups/' + currentGroup.id, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!r.ok) {
+      const data = await r.json();
+      alert(data.error || t('groupError'));
+      return;
+    }
+    closeGroupInfo();
+    closeChatOnMobile();
+    currentGroup = null;
+    await loadGroups();
+    alert(t('groupDeleted'));
+  } catch (e) {
+    alert(t('errorNetwork'));
+  }
 }
 
 // ==================== НАСТРОЙКИ ПРОФИЛЯ ====================
@@ -1089,6 +1451,7 @@ async function saveProfile() {
 
 // ==================== ПРОСМОТР ЧУЖОГО ПРОФИЛЯ ====================
 async function openViewProfile() {
+  if (currentGroup) return; // В группах профиль не открываем
   if (!currentChat || currentChat.id === 'saved') return;
   const modal = document.getElementById('view-profile-modal');
   
@@ -1100,7 +1463,7 @@ async function openViewProfile() {
   
   const bioEl = document.getElementById('view-profile-bio');
   bioEl.textContent = '';
-  bioEl.removeAttribute('data-i18n'); // страховка: язык не должен затирать bio
+  bioEl.removeAttribute('data-i18n');
   
   const dateEl = document.getElementById('view-profile-chat-date');
   dateEl.textContent = '';
@@ -1137,14 +1500,22 @@ document.addEventListener('click', (e) => {
   if (viewModal && viewModal.style.display !== 'none' && e.target === viewModal) closeViewProfile();
   const statsModal = document.getElementById('stats-modal');
   if (statsModal && statsModal.style.display !== 'none' && e.target === statsModal) closeChatStats();
+  const createGroupModal = document.getElementById('create-group-modal');
+  if (createGroupModal && createGroupModal.style.display !== 'none' && e.target === createGroupModal) closeCreateGroup();
+  const groupInfoModal = document.getElementById('group-info-modal');
+  if (groupInfoModal && groupInfoModal.style.display !== 'none' && e.target === groupInfoModal) closeGroupInfo();
 });
 document.addEventListener('keydown', (e) => {
-  const modal = document.getElementById('settings-modal');
-  const viewModal = document.getElementById('view-profile-modal');
   if (e.key === 'Escape') {
+    const modal = document.getElementById('settings-modal');
     if (modal && modal.style.display !== 'none') closeSettings();
+    const viewModal = document.getElementById('view-profile-modal');
     if (viewModal && viewModal.style.display !== 'none') closeViewProfile();
     if (chatStatsOpen) closeChatStats();
+    const cgm = document.getElementById('create-group-modal');
+    if (cgm && cgm.style.display !== 'none') closeCreateGroup();
+    const gim = document.getElementById('group-info-modal');
+    if (gim && gim.style.display !== 'none') closeGroupInfo();
   }
 });
 
@@ -1168,6 +1539,8 @@ function toggleTheme(isDark) {
   if (savedTheme === 'dark') applyTheme(true);
   else if (savedTheme === 'light') applyTheme(false);
   else applyTheme(window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+  applyLanguage();
 })();
 
 // --- Boot ---

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Geopolis">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="Geopolis — геополитический симулятор 1936 года в браузере. Управляйте государством в реальном времени.">
+<!-- v3.15: версия в title -->
+<title>Geopolis v3.15 — Геополитический симулятор</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<!-- FIX: сообщение, если JS отключён -->
+<noscript>
+  <div style="padding: 40px; text-align: center; font-family: sans-serif; color: #e8eefc; background: #0b1020; min-height: 100vh;">
+    <h1>Geopolis</h1>
+    <p>Для игры необходим JavaScript. Включите его в настройках браузера.</p>
+  </div>
+</noscript>
+
+<div id="app">
+
+  <!-- ================= ГЛАВНОЕ МЕНЮ ================= -->
+  <section id="menu-screen" class="screen active">
+    <div class="menu-orb menu-orb-1"></div>
+    <div class="menu-orb menu-orb-2"></div>
+    <div class="menu-orb menu-orb-3"></div>
+    <div class="menu-glow"></div>
+
+    <div class="menu-content">
+      <div class="logo">
+        <div class="logo-globe"></div>
+        <h1>GEOPOLIS</h1>
+        <p class="tagline">Геополитический симулятор · 1936</p>
+      </div>
+
+      <nav class="menu-buttons">
+        <button id="btn-new" class="menu-btn primary">Новая игра</button>
+
+        <div class="menu-grid">
+          <button id="btn-continue" class="menu-btn-secondary" disabled>
+            <span class="mb-icon">▶</span>
+            <span class="mb-text">
+              <span class="mb-title">Продолжить</span>
+              <span class="mb-sub" id="continue-info">Нет сохранений</span>
+            </span>
+          </button>
+
+          <button id="btn-load" class="menu-btn-secondary">
+            <span class="mb-icon">📁</span>
+            <span class="mb-text">
+              <span class="mb-title">Загрузить игру</span>
+              <span class="mb-sub">Слоты сохранений</span>
+            </span>
+          </button>
+
+          <button id="btn-multiplayer" class="menu-btn-secondary">
+            <span class="mb-icon">🌐</span>
+            <span class="mb-text">
+              <span class="mb-title">Мультиплеер</span>
+              <span class="mb-sub">2–5 игроков</span>
+            </span>
+          </button>
+
+          <button id="btn-settings" class="menu-btn-secondary">
+            <span class="mb-icon">⚙️</span>
+            <span class="mb-text">
+              <span class="mb-title">Настройки</span>
+              <span class="mb-sub">Интерфейс и игра</span>
+            </span>
+          </button>
+
+          <button id="btn-about" class="menu-btn-secondary">
+            <span class="mb-icon">ℹ️</span>
+            <span class="mb-text">
+              <span class="mb-title">Об игре</span>
+              <!-- v3.15: версия -->
+              <span class="mb-sub">Geopolis v3.15</span>
+            </span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- v3.15: версия + новые фичи -->
+      <footer class="menu-footer">v3.15 · HOI4-стиль · 30 государств · Мультиплеер · Парламентская жизнь · Внутренняя безопасность · AI-страны</footer>
+    </div>
+  </section>
+
+  <!-- ================= ЛОББИ ================= -->
+  <section id="lobby-screen" class="screen">
+    <div class="setup-wrap">
+      <button class="btn back-btn" id="btn-mp-back">← В меню</button>
+      <h2 class="setup-title">🌐 Мультиплеер</h2>
+
+      <div class="grid cols-2" style="margin-bottom: 20px;">
+        <div class="card">
+          <h3>Создать комнату</h3>
+          <p class="muted small">Вы станете хостом. Другие подключатся по коду.</p>
+          <button id="btn-mp-create" class="btn primary" style="margin-top: 12px;">➕ Создать комнату</button>
+        </div>
+
+        <div class="card">
+          <h3>Войти по коду</h3>
+          <p class="muted small">Введите код комнаты (например, GEOP-7X3K).</p>
+          <input id="mp-code-input" type="text" placeholder="GEOP-XXXX" maxlength="9" style="padding: 10px; width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text); margin: 10px 0; font-size: 16px; text-transform: uppercase;" />
+          <button id="btn-mp-join" class="btn primary">→ Войти</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="display: flex; justify-content: space-between; align-items: center;">
+          Список комнат
+          <button id="btn-mp-list" class="btn small">🔄 Обновить</button>
+        </h3>
+        <div id="mp-room-list" style="margin-top: 12px;">
+          <div class="empty">Нажмите «Обновить»</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= КОМНАТА ================= -->
+  <section id="room-screen" class="screen">
+    <div class="setup-wrap">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <button class="btn back-btn" id="btn-room-back">← В меню</button>
+        <div id="room-pause-banner" class="badge warn hidden">⏸ Игра на паузе</div>
+      </div>
+
+      <h2 class="setup-title">Комната: <span id="room-code-title">—</span></h2>
+
+      <div class="grid cols-2" style="margin-bottom: 20px;">
+        <div class="card">
+          <h3>👥 Игроки</h3>
+          <div id="room-players">
+            <div class="empty">Пока никого</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>⚙️ Управление</h3>
+          <div class="flex gap-8 wrap" style="margin-top: 12px;">
+            <button id="btn-room-ready" class="btn primary" disabled>✓ Готов</button>
+            <button id="btn-room-start" class="btn primary" disabled style="display: none;">▶ Начать игру</button>
+            <button id="btn-room-pause" class="btn" style="display: none;">❚❚ Пауза</button>
+            <button id="btn-room-leave" class="btn danger">🚪 Покинуть</button>
+          </div>
+          <p class="muted small" style="margin-top: 12px;">
+            Хост — тот, у кого 👑. Начать игру может только хост, когда все готовы.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🌍 Выбор страны</h3>
+        <p class="muted small">Нажмите на страну, чтобы выбрать персонажа. Занятые страны недоступны.</p>
+        <div id="room-country-picker" style="margin-top: 12px;">
+          <div class="empty">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= СОЗДАНИЕ ГОСУДАРСТВА ================= -->
+  <section id="setup-screen" class="screen">
+    <div class="setup-wrap">
+      <button class="btn back-btn" id="btn-setup-back">← В меню</button>
+      <h2 class="setup-title">Создание государства</h2>
+      <div class="setup-tabs">
+        <button class="stab active" data-mode="custom">Своё государство</button>
+        <button class="stab" data-mode="preset">Выбрать из мира</button>
+      </div>
+
+      <div id="setup-custom" class="setup-panel active">
+        <div class="form-grid">
+          <label class="field wide">
+            <span>Название государства</span>
+            <input id="f-name" type="text" maxlength="48" value="Республика Аврора" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Краткое название</span>
+            <input id="f-short" type="text" maxlength="20" value="Аврора" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Столица</span>
+            <input id="f-capital" type="text" maxlength="24" value="Новоград" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>Площадь, км²</span>
+            <input id="f-area" type="number" min="1000" step="1000" value="850000" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Население</span>
+            <input id="f-pop" type="number" min="100000" step="100000" value="42000000" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>ВВП на душу, $</span>
+            <input id="f-gdp" type="number" min="50" step="50" value="600" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Форма правления</span>
+            <select id="f-gov"></select>
+          </label>
+          <label class="field">
+            <span>Политическая система</span>
+            <select id="f-sys"></select>
+          </label>
+          <label class="field">
+            <span>Идеология</span>
+            <select id="f-ideo"></select>
+          </label>
+          <label class="field">
+            <span>Сложность</span>
+            <select id="f-diff">
+              <option value="easy">Лёгкая</option>
+              <option value="normal" selected>Обычная</option>
+              <option value="hard">Сложная</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Узор флага</span>
+            <select id="f-pattern">
+              <option value="vertical">Вертикальные полосы</option>
+              <option value="horizontal" selected>Горизонтальные полосы</option>
+              <option value="bands">Повторяющиеся полосы</option>
+              <option value="canton">Кантон</option>
+              <option value="cross">Крест</option>
+              <option value="gradient">Градиент</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Цвета флага</span>
+            <div class="flag-colors">
+              <input id="f-c1" type="color" value="#1e3a8a">
+              <input id="f-c2" type="color" value="#ffffff">
+              <input id="f-c3" type="color" value="#b91c1c">
+            </div>
+          </label>
+        </div>
+        <div class="flag-preview-wrap">
+          <div id="flag-preview" class="flag-preview"></div>
+          <span>Предпросмотр флага</span>
+        </div>
+        <div class="setup-actions">
+          <button id="btn-random" class="btn ghost">🎲 Случайное государство</button>
+          <button id="btn-start" class="btn primary">Начать правление</button>
+        </div>
+      </div>
+
+      <div id="setup-preset" class="setup-panel">
+        <p class="hint">Выберите государство, которым хотите управлять. Остальные станут вашими соседями и соперниками.</p>
+        <div id="preset-list" class="preset-list"></div>
+        <div class="setup-actions">
+          <button id="btn-start-preset" class="btn primary">Начать правление</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= НАСТРОЙКИ ================= -->
+  <section id="settings-screen" class="screen">
+    <div class="setup-wrap">
+      <button class="btn back-btn" id="btn-settings-back">← В меню</button>
+      <h2 class="setup-title">Настройки</h2>
+
+      <div class="settings-grid">
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Автосохранение</div>
+            <div class="setting-desc">Сохранять игру каждый год</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="set-autosave" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Анимации</div>
+            <div class="setting-desc">Плавные переходы и эффекты</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="set-animations" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Скорость по умолчанию</div>
+            <div class="setting-desc">С какой скоростью начинать игру</div>
+          </div>
+          <select id="set-speed" class="setting-select">
+            <option value="0">Пауза</option>
+            <option value="1" selected>Обычная</option>
+            <option value="2">Быстрая</option>
+            <option value="3">Очень быстрая</option>
+            <option value="5">Максимальная</option>
+          </select>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-name">Масштаб интерфейса</div>
+            <div class="setting-desc">Размер элементов</div>
+          </div>
+          <div class="setting-slider-wrap">
+            <input type="range" id="set-scale" min="80" max="120" step="5" value="100">
+            <span id="set-scale-val" class="setting-slider-val">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn danger" id="btn-settings-reset">Сбросить всё</button>
+        <button class="btn primary" id="btn-settings-save">Готово</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= СОХРАНЕНИЯ ================= -->
+  <section id="saves-screen" class="screen">
+    <div class="setup-wrap">
+      <button class="btn back-btn" id="btn-saves-back">← Назад</button>
+      <h2 class="setup-title" id="saves-title">Сохранения</h2>
+      <div class="saves-grid" id="saves-grid"></div>
+      <div class="saves-actions">
+        <button class="btn" id="btn-import-save">📥 Импорт</button>
+        <input type="file" id="input-import-save" accept=".json,.geopolis" hidden>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ИГРА ================= -->
+  <section id="game-screen" class="screen">
+    <header class="topbar">
+      <div class="tb-country">
+        <div id="top-flag" class="flag-box"></div>
+        <div>
+          <div class="tb-name" id="top-name">—</div>
+          <div class="tb-sub" id="top-sub">—</div>
+        </div>
+      </div>
+      <div class="tb-center">
+        <div class="tb-date" id="top-date">Январь 1936</div>
+        <div class="tb-day" id="top-day">День 0</div>
+        <div class="speed-controls" id="speed-controls">
+          <button data-speed="0" title="Пауза">❚❚</button>
+          <button data-speed="1" class="active" title="Обычная">▶</button>
+          <button data-speed="2" title="Быстрая">▶▶</button>
+          <button data-speed="3" title="Очень быстрая">▶▶▶</button>
+          <button data-speed="5" title="Максимальная">⏩</button>
+        </div>
+        <div class="tb-actions">
+          <button id="btn-save" class="btn-save-game" title="Сохранить игру">💾</button>
+          <button id="btn-to-menu" class="btn-menu-exit" title="В главное меню">🏠</button>
+        </div>
+      </div>
+      <div class="tb-stats" id="top-stats"></div>
+    </header>
+
+    <nav class="tabs" id="tabs">
+      <button data-tab="overview" class="active">Обзор</button>
+      <button data-tab="economy">Экономика</button>
+      <button data-tab="politics">Политика</button>
+      <button data-tab="parliament">🏛️ Парламент</button>
+      <button data-tab="society">Общество</button>
+      <button data-tab="diplomacy">Дипломатия</button>
+      <button data-tab="military">Армия</button>
+      <button data-tab="stats">Статистика</button>
+      <button data-tab="news">События</button>
+    </nav>
+
+    <main id="view"></main>
+  </section>
+
+  <!-- Модалка — вне #game-screen, чтобы была видна на любом экране (menu, setup, game, lobby, room) -->
+  <div id="event-modal" class="modal hidden"></div>
+
+  <!-- Тосты — вне #game-screen, чтобы были видны в меню -->
+  <div id="toast-container"></div>
+
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
